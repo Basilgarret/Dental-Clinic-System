@@ -1,0 +1,22 @@
+/* ============================================================
+   TOPBAR + MAIN CONTENT AREA
+============================================================ */
+
+.main-col{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.topbar{
+  height: 64px; flex-shrink:0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 0 28px;
+  position: sticky; top:0; z-index:20;
+}
+.topbar-title{ font-family: var(--font-serif); font-size:19px; font-weight:600; }
+.topbar-sub{ font-size:12px; color: var(--text-muted); margin-top:1px; }
+.topbar-right{ display:flex; align-items:center; gap:14px; }
+.topbar-date{ font-size:12.5px; color: var(--text-muted); }
+
+.view-content{ padding: 28px; flex:1; }
+.view-header{ display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:22px; gap:16px; flex-wrap:wrap; }
+.view-header h1{ font-size:24px; }
+.view-header p{ color: var(--text-muted); font-size:13.5px; margin-top:4px; }

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wellstone Dental &mdash; Clinic &amp; Patient Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Stylesheets: loaded in this order so later files can safely build on earlier ones -->
+<link rel="stylesheet" href="Css/Variables.css">
+<link rel="stylesheet" href="Css/Base.css">
+<link rel="stylesheet" href="Css/Buttons.css">
+<link rel="stylesheet" href="Css/Forms.css">
+<link rel="stylesheet" href="Css/Login.css">
+<link rel="stylesheet" href="Css/Sidebar.css">
+<link rel="stylesheet" href="Css/Topbar.css">
+<link rel="stylesheet" href="Css/Dashboard.css">
+<link rel="stylesheet" href="Css/Tables.css">
+<link rel="stylesheet" href="Css/Modal.css">
+<link rel="stylesheet" href="Css/Toast.css">
+<link rel="stylesheet" href="Css/Responsive.css">
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="login-screen">
+  <div class="login-brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3c-2.2 0-3.5 1.4-4.6 1.4C6 4.4 5 3.6 3.8 4c-1.6.6-2 2.7-1.5 4.7.6 2.3 1.7 3.6 2 5.7.3 2.1.4 5.6 2.2 5.6 1.6 0 1.5-3.2 1.8-4.9.2-1 .5-1.7 1.2-1.7.7 0 1 .7 1.2 1.7.3 1.7.2 4.9 1.8 4.9 1.8 0 1.9-3.5 2.2-5.6.3-2.1 1.4-3.4 2-5.7.5-2 .1-4.1-1.5-4.7-1.2-.4-2.2.4-3.6.4C15.5 4.4 14.2 3 12 3Z"/></svg>
+      <span>Wellstone Dental</span>
+    </div>
+    <div>
+      <h1>Private dental care, organized around every patient's smile.</h1>
+      <p class="tag">One system for the front desk, the chair-side team, and the people they treat &mdash; scheduling, records, prescriptions and billing, kept in sync.</p>
+    </div>
+    <div class="brand-stats">
+      <div><b>4</b><span>Role-based workspaces</span></div>
+      <div><b>128+</b><span>Patient charts on file</span></div>
+      <div><b>6</b><span>Chairs across 2 suites</span></div>
+    </div>
+  </div>
+
+  <div class="login-form-wrap">
+    <div class="login-form-box">
+      <h2>Sign in to your workspace</h2>
+      <p>Select your role and enter your credentials to continue.</p>
+
+      <div class="role-tabs" id="role-tabs">
+        <button class="role-tab active" data-role="Administrator">Admin</button>
+        <button class="role-tab" data-role="Dentist">Dentist</button>
+        <button class="role-tab" data-role="Clinic Staff">Staff</button>
+        <button class="role-tab" data-role="Patient">Patient</button>
+      </div>
+
+      <div class="login-error" id="login-error">Incorrect username or password. Please try again, or tap a demo account below.</div>
+
+      <form id="login-form" novalidate>
+        <div class="field" id="field-username">
+          <label>Username <span class="req">*</span></label>
+          <input type="text" id="login-username" autocomplete="username" placeholder="e.g. admin1">
+          <div class="field-error">Username is required.</div>
+        </div>
+        <div class="field" id="field-password">
+          <label>Password <span class="req">*</span></label>
+          <input type="password" id="login-password" autocomplete="current-password" placeholder="Enter your password">
+          <div class="field-error">Password is required.</div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+      </form>
+
+      <div class="demo-box">
+        <p>DEMO ACCOUNTS &mdash; click to autofill</p>
+        <div id="demo-chips"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app-shell" class="hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3c-2.2 0-3.5 1.4-4.6 1.4C6 4.4 5 3.6 3.8 4c-1.6.6-2 2.7-1.5 4.7.6 2.3 1.7 3.6 2 5.7.3 2.1.4 5.6 2.2 5.6 1.6 0 1.5-3.2 1.8-4.9.2-1 .5-1.7 1.2-1.7.7 0 1 .7 1.2 1.7.3 1.7.2 4.9 1.8 4.9 1.8 0 1.9-3.5 2.2-5.6.3-2.1 1.4-3.4 2-5.7.5-2 .1-4.1-1.5-4.7-1.2-.4-2.2.4-3.6.4C15.5 4.4 14.2 3 12 3Z"/></svg>
+      <span>Wellstone Dental</span>
+    </div>
+    <div class="sidebar-role" id="sidebar-role-label">WORKSPACE</div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar" id="sidebar-avatar">A</div>
+        <div>
+          <div class="name" id="sidebar-name">&nbsp;</div>
+          <div class="role" id="sidebar-role-sub">&nbsp;</div>
+        </div>
+      </div>
+      <button class="logout-btn" id="logout-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Log out
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-col">
+    <header class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-sub" id="topbar-sub">&nbsp;</div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-date" id="topbar-date"></div>
+      </div>
+    </header>
+    <main class="view-content" id="view-content"></main>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<!--
+  Scripts: plain (non-module) files loaded in dependency order.
+  They share one global scope, so each file below can use anything
+  declared in the files above it (e.g. patients.js uses helpers from
+  utils.js and data.js).
+-->
+<script src="Js/Icons.js"></script>
+<script src="Js/Data.js"></script>
+<script src="Js/Utils.js"></script>
+<script src="Js/Form-helpers.js"></script>
+<script src="Js/Auth.js"></script>
+<script src="Js/Dashboard.js"></script>
+<script src="Js/Patients.js"></script>
+<script src="Js/Appointments.js"></script>
+<script src="Js/Records.js"></script>
+<script src="Js/Prescriptions.js"></script>
+<script src="Js/Transactions.js"></script>
+<script src="Js/Profile.js"></script>
+<script src="Js/Main.js"></script>
+</body>
+</html>

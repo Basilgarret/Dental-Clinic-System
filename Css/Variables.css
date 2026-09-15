@@ -1,0 +1,36 @@
+/* ============================================================
+   DESIGN TOKENS — colors, spacing, fonts (edit here to re-theme)
+============================================================ */
+
+/* ============ TOKENS ============ */
+:root{
+  --bg: #EFF7FC;
+  --surface: #FFFFFF;
+  --panel-alt: #E2F1FA;
+  --sidebar: #1C7FC4;
+  --sidebar-hover: #2A93D8;
+  --sidebar-active: #1670AE;
+  --primary: #1C88D8;
+  --primary-dark: #146BAE;
+  --primary-light: #4FB3E8;
+  --accent: #E0A526;
+  --accent-soft: #FBF0D9;
+  --text: #16283A;
+  --text-muted: #5A7387;
+  --text-faint: #94ABBC;
+  --border: #D8EAF6;
+  --border-strong: #BEDCEE;
+  --success: #2E7D5B;
+  --success-bg: #E4F3EA;
+  --warning: #A16A0A;
+  --warning-bg: #FAF0D8;
+  --danger: #B3382C;
+  --danger-bg: #FBEAE7;
+  --info: #1C88D8;
+  --info-bg: #E3F3FC;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --shadow-modal: 0 20px 50px rgba(15, 30, 26, 0.25);
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}

@@ -1,0 +1,26 @@
+/* ============================================================
+   DASHBOARD (stat cards, timeline, quick actions)
+============================================================ */
+
+/* ============ STAT CARDS ============ */
+.stat-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; margin-bottom:26px; }
+.stat-card{
+  background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md);
+  padding: 18px 20px;
+}
+.stat-card .label{ font-size:12px; color: var(--text-muted); font-weight:600; }
+.stat-card .value{ font-family: var(--font-serif); font-size:28px; margin-top:8px; font-weight:600; }
+.stat-card .hint{ font-size:12px; color: var(--text-faint); margin-top:6px; }
+.stat-card.accent{ border-color: rgba(185,138,46,0.4); background: linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 90px); }
+
+.dash-grid{ display:grid; grid-template-columns: 1.5fr 1fr; gap:20px; align-items:start; }
+
+.timeline-item{ display:flex; gap:12px; padding: 12px 0; border-bottom:1px solid var(--border); }
+.timeline-item:last-child{ border-bottom:none; }
+.timeline-dot{ width:32px; height:32px; border-radius:50%; background: var(--info-bg); color: var(--info); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.timeline-dot svg{ width:15px; height:15px; }
+.timeline-body .t1{ font-size:13.5px; font-weight:600; }
+.timeline-body .t2{ font-size:12px; color: var(--text-muted); margin-top:2px; }
+
+.quick-actions{ display:flex; flex-direction:column; gap:8px; }
+.quick-actions .btn{ justify-content:flex-start; }
