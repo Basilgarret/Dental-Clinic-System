@@ -3,11 +3,16 @@
    Every network call to the backend goes through here, so error
    handling and JSON parsing only has to be written once.
 ====================================================================== */
-const API_BASE = 'http://localhost:4000/api';
+const API_BASE = window.location.port === '5500'
+  ? `${window.location.protocol}//${window.location.hostname}:4000/api`
+  : `${window.location.origin}/api`;
 
 async function apiRequest(path, options){
   const opts = Object.assign({ headers: { 'Content-Type': 'application/json' } }, options || {});
-  if(opts.body && typeof opts.body !== 'string') opts.body = JSON.stringify(opts.body);
+  opts.credentials = 'include';
+  const isFormData = typeof FormData !== 'undefined' && opts.body instanceof FormData;
+  if(opts.body && typeof opts.body !== 'string' && !isFormData) opts.body = JSON.stringify(opts.body);
+  if(isFormData) delete opts.headers['Content-Type'];
 
   let res;
   try{

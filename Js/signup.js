@@ -8,13 +8,26 @@
 const SIGNUP_BASE_FIELDS = [
   {key:'name', label:'Full Name', type:'text', required:true},
   {key:'username', label:'Username', type:'text', required:true, hint:'This is what you\u2019ll use to sign in.'},
-  {key:'password', label:'Password', type:'password', required:true, hint:'At least 6 characters.'},
+  {key:'password', label:'Password', type:'password', required:true, hint:'At least 10 characters.'},
   {key:'confirmPassword', label:'Confirm Password', type:'password', required:true},
-  {key:'role', label:'I am creating an account as a\u2026', type:'select', required:true, options:['Administrator','Dentist','Clinic Staff','Patient']},
+  {key:'role', label:'I am creating an account as a\u2026', type:'select', required:true, options:['Patient','Dentist','Clinic Owner']},
 ];
 
 const SIGNUP_DENTIST_FIELDS = [
   {key:'specialty', label:'Specialty', type:'text', required:true, placeholder:'e.g. General & Cosmetic Dentistry'},
+];
+
+const SIGNUP_CLINIC_FIELDS = [
+  {key:'clinicName', label:'Clinic name', type:'text', required:true},
+  {key:'registrationNumber', label:'Business registration number', type:'text', required:false},
+  {key:'phone', label:'Clinic phone', type:'tel', required:true, pattern:PHONE_RE, patternMsg:'Enter a valid phone number.'},
+  {key:'email', label:'Clinic email', type:'email', required:true, pattern:EMAIL_RE, patternMsg:'Enter a valid email address.'},
+  {key:'address', label:'Street address', type:'text', required:true},
+  {key:'city', label:'City', type:'text', required:true},
+  {key:'region', label:'Region / province', type:'text', required:false},
+  {key:'specializations', label:'Specializations', type:'text', required:true, placeholder:'General dentistry, Orthodontics'},
+  {key:'latitude', label:'Map latitude (optional)', type:'number', required:false, placeholder:'e.g. 10.3157', step:'any'},
+  {key:'longitude', label:'Map longitude (optional)', type:'number', required:false, placeholder:'e.g. 123.8854', step:'any'},
 ];
 
 const SIGNUP_PATIENT_FIELDS = [
@@ -26,6 +39,7 @@ const SIGNUP_PATIENT_FIELDS = [
 ];
 
 function switchToSignup(){
+  document.getElementById('login-screen').classList.add('signup-mode');
   document.getElementById('login-view').classList.add('hidden');
   document.getElementById('signup-view').classList.remove('hidden');
   document.getElementById('signup-error').classList.remove('show');
@@ -33,6 +47,7 @@ function switchToSignup(){
 }
 
 function switchToLogin(){
+  document.getElementById('login-screen').classList.remove('signup-mode');
   document.getElementById('signup-view').classList.add('hidden');
   document.getElementById('login-view').classList.remove('hidden');
   document.getElementById('login-error').classList.remove('show');
@@ -44,7 +59,7 @@ function switchToLogin(){
 
 function renderSignupBaseFields(){
   const root = document.getElementById('signup-fields');
-  root.innerHTML = SIGNUP_BASE_FIELDS.map(f => fieldHtml(f, '')).join('') + `<div id="signup-extra-fields"></div>`;
+  root.innerHTML = `<div class="signup-base-fields">${SIGNUP_BASE_FIELDS.map(f => fieldHtml(f, '')).join('')}</div><div id="signup-extra-fields" class="signup-extra-fields"></div>`;
   document.getElementById('f-role').addEventListener('change', (e)=>{
     renderSignupExtraFields(e.target.value);
   });
@@ -56,6 +71,8 @@ function renderSignupExtraFields(role){
     extraRoot.innerHTML = SIGNUP_DENTIST_FIELDS.map(f => fieldHtml(f, '')).join('');
   } else if(role === 'Patient'){
     extraRoot.innerHTML = SIGNUP_PATIENT_FIELDS.map(f => fieldHtml(f, '')).join('');
+  } else if(role === 'Clinic Owner'){
+    extraRoot.innerHTML = SIGNUP_CLINIC_FIELDS.map(f => fieldHtml(f, '')).join('') + '<p class="field-hint">Your clinic will be reviewed before it appears in patient search.</p>';
   } else {
     extraRoot.innerHTML = '';
   }
@@ -84,6 +101,9 @@ function initSignup(){
       ({ valid: extraValid, values: extra } = validateFields(SIGNUP_DENTIST_FIELDS));
     } else if(base.role === 'Patient'){
       ({ valid: extraValid, values: extra } = validateFields(SIGNUP_PATIENT_FIELDS));
+    } else if(base.role === 'Clinic Owner'){
+      ({ valid: extraValid, values: extra } = validateFields(SIGNUP_CLINIC_FIELDS));
+      extra.specializations = (extra.specializations || '').split(',').map(value=>value.trim()).filter(Boolean);
     }
 
     if(!baseValid || !extraValid) return;
@@ -94,9 +114,9 @@ function initSignup(){
     const passwordWrap = document.getElementById('field-password');
     const confirmWrap = document.getElementById('field-confirmPassword');
 
-    if(base.password.length < 6){
+    if(base.password.length < 10){
       passwordWrap.classList.add('error');
-      passwordWrap.querySelector('.field-error').textContent = 'Password must be at least 6 characters.';
+      passwordWrap.querySelector('.field-error').textContent = 'Password must be at least 10 characters.';
       customOk = false;
     }
     if(base.confirmPassword !== base.password){

@@ -6,10 +6,13 @@ const MENUS = {
     {key:'dashboard', label:'Dashboard', icon:ICONS.dashboard},
     {key:'patients', label:'Patients', icon:ICONS.patients},
     {key:'appointments', label:'Appointments', icon:ICONS.appointments},
+    {key:'clinicApprovals', label:'Clinic approvals', icon:ICONS.info},
+    {key:'adminUsers', label:'User management', icon:ICONS.profile},
     {key:'dentists', label:'Dentists', icon:ICONS.profile},
     {key:'services', label:'Treatments & Services', icon:ICONS.tooth},
     {key:'records', label:'Dental Records', icon:ICONS.records},
     {key:'prescriptions', label:'Prescriptions', icon:ICONS.prescriptions},
+    {key:'followUps', label:'Follow-ups', icon:ICONS.clock},
     {key:'transactions', label:'Transactions', icon:ICONS.transactions},
     {key:'reports', label:'Reports', icon:ICONS.dashboard},
   ],
@@ -24,17 +27,28 @@ const MENUS = {
     {key:'dashboard', label:'Dashboard', icon:ICONS.dashboard},
     {key:'patients', label:'Patients', icon:ICONS.patients},
     {key:'appointments', label:'Appointments', icon:ICONS.appointments},
+    {key:'followUps', label:'Follow-ups', icon:ICONS.clock},
     {key:'dentists', label:'Dentists', icon:ICONS.profile},
     {key:'services', label:'Treatments & Services', icon:ICONS.tooth},
     {key:'transactions', label:'Transactions', icon:ICONS.transactions},
   ],
   'Patient': [
     {key:'dashboard', label:'Overview', icon:ICONS.dashboard},
+    {key:'clinics', label:'Find a clinic', icon:ICONS.info},
     {key:'appointments', label:'My Appointments', icon:ICONS.appointments},
     {key:'records', label:'My Dental Records', icon:ICONS.records},
     {key:'prescriptions', label:'My Prescriptions', icon:ICONS.prescriptions},
     {key:'transactions', label:'Billing', icon:ICONS.transactions},
     {key:'profile', label:'My Profile', icon:ICONS.profile},
+    {key:'followUps', label:'Follow-ups', icon:ICONS.clock},
+  ],
+  'Clinic Owner': [
+    {key:'dashboard', label:'Clinic overview', icon:ICONS.dashboard},
+    {key:'clinicProfile', label:'Clinic profile & documents', icon:ICONS.records},
+    {key:'dentists', label:'Dentists', icon:ICONS.patients},
+    {key:'services', label:'Treatments & Services', icon:ICONS.tooth},
+    {key:'appointments', label:'Appointments', icon:ICONS.appointments},
+    {key:'followUps', label:'Follow-ups', icon:ICONS.clock},
   ],
 };
 
@@ -93,6 +107,18 @@ async function initLogin(){
     console.warn('Could not load dentist list yet:', err.message);
   }
 
+  try{
+    const session = await apiGet('/auth/me');
+    await logIn(session.user);
+    return;
+  }catch(err){
+    if(err.message !== 'Sign in to continue.'){
+      const errBox = document.getElementById('login-error');
+      errBox.textContent = err.message;
+      errBox.classList.add('show');
+    }
+  }
+
   // A brand-new, empty database has no accounts to sign in with yet —
   // send people straight to registration instead of a dead-end login form.
   try{
@@ -110,8 +136,9 @@ async function initLogin(){
 }
 
 async function logIn(user){
-  await loadDB();
+  await loadDB(user);
   state.currentUser = user;
+  state.clinic = user.role === 'Clinic Owner' ? await apiGet('/clinics/mine') : null;
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.remove('hidden');
   document.getElementById('sidebar-avatar').textContent = initials(user.name);
@@ -125,8 +152,10 @@ async function logIn(user){
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric', year:'numeric'});
 }
 
-function logOut(){
+async function logOut(){
+  try{ await apiPost('/auth/logout', {}); }catch(err){ console.warn('Server logout failed:', err.message); }
   state.currentUser = null;
+  state.clinic = null;
   document.getElementById('app-shell').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('login-form').reset();
@@ -163,6 +192,11 @@ const VIEW_TITLES = {
   transactions: ['Transactions', 'Invoices and payments.'],
   reports: ['Reports', 'Clinic activity and payment summaries.'],
   profile: ['My Profile', 'Your personal and contact information.'],
+  clinics: ['Clinics', 'Browse approved clinics and services.'],
+  clinicProfile: ['Clinic profile & documents', 'Manage clinic details and verification documents.'],
+  adminUsers: ['User management', 'Manage staff accounts and clinic access.'],
+  followUps: ['Follow-ups', 'Upcoming care and follow-up visits.'],
+  clinicApprovals: ['Clinic verification', 'Review clinic applications and documents.'],
 };
 
 function navigateTo(view){
@@ -173,9 +207,14 @@ function navigateTo(view){
   document.getElementById('topbar-sub').textContent = sub;
   const renderers = {
     dashboard: renderDashboard, patients: renderPatients, appointments: renderAppointments,
-    dentists: renderDentists,
-    services: renderServices,
+    dentists: state.currentUser.role === 'Clinic Owner' ? renderClinicTeam : renderDentists,
+    services: state.currentUser.role === 'Clinic Owner' ? renderClinicServices : renderServices,
     reports: renderReports,
+    clinicProfile: renderClinicProfile,
+    clinicApprovals: renderClinicApprovals,
+    adminUsers: renderAdminUsers,
+    clinics: renderClinicDirectory,
+    followUps: renderFollowUps,
     records: renderRecords, prescriptions: renderPrescriptions, transactions: renderTransactions,
     profile: renderProfile,
   };

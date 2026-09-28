@@ -44,13 +44,13 @@ function renderDashboard(){
         <div class="panel">
           <div class="panel-header"><h3>Quick actions</h3></div>
           <div class="panel-body pad quick-actions">
-            <button class="btn btn-primary" id="qa-book">${ICONS.cal_plus} Request an appointment</button>
+            <button class="btn btn-primary" id="qa-book">${ICONS.cal_plus} Find a clinic</button>
             <button class="btn btn-outline" id="qa-records">${ICONS.records} View my dental records</button>
             <button class="btn btn-outline" id="qa-billing">${ICONS.cash} View billing</button>
           </div>
         </div>
       </div>`;
-    document.getElementById('qa-book').addEventListener('click', ()=> openAppointmentForm('add'));
+    document.getElementById('qa-book').addEventListener('click', ()=> navigateTo('clinics'));
     document.getElementById('qa-records').addEventListener('click', ()=> navigateTo('records'));
     document.getElementById('qa-billing').addEventListener('click', ()=> navigateTo('transactions'));
     return;
@@ -116,6 +116,28 @@ function renderDashboard(){
     document.getElementById('qa-newpatient').addEventListener('click', ()=> openPatientForm('add'));
     document.getElementById('qa-newappt').addEventListener('click', ()=> openAppointmentForm('add'));
     document.getElementById('qa-invoice').addEventListener('click', ()=> openTransactionForm('add'));
+    return;
+  }
+
+  if(role === 'Clinic Owner'){
+    const clinic = state.clinic?.clinic;
+    const pendingAppointments = state.appointments.filter(appointment=>appointment.status==='Requested'||appointment.status==='Reschedule Requested').length;
+    const pendingDocuments = state.clinic?.documents?.filter(document=>document.status==='Pending Review').length || 0;
+    const activeDentists = state.clinic?.dentists?.filter(dentist=>dentist.active).length || 0;
+    root.innerHTML = `
+      <div class="dashboard-intro"><div><span class="section-eyebrow">CLINIC WORKSPACE</span><h1>${escapeHtml(clinic?.name||'Clinic overview')}</h1><p>Manage verification, your care team, services, and appointment requests.</p></div><span class="badge ${clinic?.status==='Approved'?'badge-success':clinic?.status==='Rejected'?'badge-danger':'badge-warning'}">${escapeHtml(clinic?.status||'Pending Review')}</span></div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="label">Clinic status</div><div class="value service-status-value">${escapeHtml(clinic?.status||'Pending Review')}</div><div class="hint">${clinic?.status==='Approved'?'Visible in patient search':'Complete verification to appear in search'}</div></div>
+        <div class="stat-card"><div class="label">Appointment requests</div><div class="value">${pendingAppointments}</div><div class="hint">Awaiting clinic action</div></div>
+        <div class="stat-card"><div class="label">Active dentists</div><div class="value">${activeDentists}</div><div class="hint">On your clinic roster</div></div>
+        <div class="stat-card"><div class="label">Documents to review</div><div class="value">${pendingDocuments}</div><div class="hint">Clinic verification files</div></div>
+      </div>
+      ${clinic?.rejectionReason?`<div class="clinic-rejection-note"><strong>Review reason</strong><span>${escapeHtml(clinic.rejectionReason)}</span></div>`:''}
+      <div class="dashboard-side clinic-owner-actions"><section class="panel"><div class="panel-header"><h3>Clinic setup</h3></div><div class="panel-body pad quick-actions"><button class="btn btn-outline" id="owner-profile">${ICONS.records} Profile &amp; documents</button><button class="btn btn-outline" id="owner-dentists">${ICONS.patients} Manage dentists</button><button class="btn btn-outline" id="owner-services">${ICONS.tooth} Manage services</button><button class="btn btn-primary" id="owner-appointments">${ICONS.appointments} Review appointments</button></div></section></div>`;
+    document.getElementById('owner-profile').addEventListener('click',()=>navigateTo('clinicProfile'));
+    document.getElementById('owner-dentists').addEventListener('click',()=>navigateTo('dentists'));
+    document.getElementById('owner-services').addEventListener('click',()=>navigateTo('services'));
+    document.getElementById('owner-appointments').addEventListener('click',()=>navigateTo('appointments'));
     return;
   }
 

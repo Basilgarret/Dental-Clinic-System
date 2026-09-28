@@ -79,7 +79,7 @@ function buildTxTable(list, role, canEdit){
       <td>${escapeHtml(t.method)}</td>
       <td>${statusBadge(t.status)}</td>
       <td><div class="row-actions">
-        ${role==='Patient' && t.status!=='Paid' ? `<button class="btn btn-primary btn-sm" data-pay-tx="${t.id}">Pay now</button>` : ''}
+        ${role==='Patient' && t.status!=='Paid' ? '<span class="cell-sub">Contact clinic to arrange payment</span>' : ''}
         ${canEdit ? `<button class="icon-btn" data-edit-tx="${t.id}" title="Edit">${ICONS.edit}</button>` : ''}
         ${canEdit ? `<button class="icon-btn danger" data-delete-tx="${t.id}" title="Delete">${ICONS.trash}</button>` : ''}
       </div></td>

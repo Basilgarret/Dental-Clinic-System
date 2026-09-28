@@ -69,6 +69,9 @@
   .profile-timeline-item > time{ font-size:9px; }
   .profile-billing-total{ align-items:flex-end; flex-direction:column; gap:5px; }
 }
+.clinic-available-heading{ margin-top:28px; }
+.clinic-map{ display:block; width:100%; min-height:220px; height:280px; border:0; border-radius:var(--radius-sm); background:var(--panel-alt); }
+.map-link{ display:inline-flex; margin-top:8px; color:var(--primary); font-size:12px; font-weight:700; }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{ scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
 }

@@ -56,7 +56,16 @@
   justify-content:center;
   padding: 40px;
 }
-.login-form-box{ width: 100%; max-width: 380px; }
+.login-form-box{
+  width:100%;
+  max-width:560px;
+  padding:28px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-md);
+  box-shadow:var(--shadow-card);
+}
+#login-view{ max-width:380px; margin:0 auto; }
 .login-form-box h2{ font-size: 26px; margin-bottom:6px; }
 .login-form-box > p{ color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
 
@@ -106,3 +115,41 @@
   padding: 10px 12px; border-radius: var(--radius-sm); font-size:13px; margin-bottom:16px; display:none;
 }
 .login-error.show{ display:block; }
+
+#login-screen.signup-mode{
+  height:100dvh;
+  min-height:100dvh;
+  overflow:hidden;
+}
+#login-screen.signup-mode .login-form-box{ padding:20px 24px; }
+#login-screen.signup-mode .login-form-box h2{ margin-bottom:4px; }
+#login-screen.signup-mode .login-form-box > p{ margin-bottom:12px; }
+.signup-base-fields,.signup-extra-fields{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:0 16px;
+}
+#signup-fields .field{ min-width:0; margin-bottom:9px; }
+#signup-fields .field label{ font-size:12px; margin-bottom:4px; }
+#signup-fields .field input,#signup-fields .field select{ padding:8px 10px; }
+#login-screen.signup-mode #signup-error{ margin-bottom:8px; }
+#login-screen.signup-mode #signup-form > button{ margin-top:4px; }
+#login-screen.signup-mode #signup-view > .auth-switch{ margin:10px 0 0; }
+
+@media (max-width:780px){
+  .signup-base-fields,.signup-extra-fields{ column-gap:10px; }
+}
+@media (max-width:520px){
+  .login-form-box{ padding:20px; }
+  #login-screen.signup-mode .login-form-box{ padding:16px 14px; }
+  #signup-fields .field{ margin-bottom:7px; }
+}
+@media (max-height:700px){
+  #login-screen .login-form-wrap{ padding-top:12px; padding-bottom:12px; }
+  #login-screen.signup-mode .login-form-box h2{ font-size:21px; }
+  #login-screen.signup-mode .login-form-box > p{ margin-bottom:8px; }
+  #signup-fields .field{ margin-bottom:5px; }
+  #signup-fields .field label{ font-size:11px; }
+  #signup-fields .field input,#signup-fields .field select{ padding:6px 8px; }
+  #login-screen.signup-mode #signup-view > .auth-switch{ margin-top:6px; }
+}

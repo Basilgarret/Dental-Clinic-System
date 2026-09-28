@@ -22,16 +22,16 @@ function renderAppointments(){
   }
   list = list.sort((a,b)=> a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
-  const canManage = role==='Administrator' || role==='Clinic Staff';
+  const canManage = role==='Administrator' || role==='Clinic Staff' || role==='Clinic Owner';
   const canAdd = role!=='Dentist';
-  const addLabel = role==='Patient' ? 'Request appointment' : 'Schedule appointment';
+  const addLabel = role==='Patient' ? 'Find a clinic' : 'Schedule appointment';
 
   root.innerHTML = `
     <div class="panel">
       <div class="panel-header">
         <div class="toolbar">
           <select class="filter-select" id="appt-filter">
-            ${['All','Requested','Scheduled','Completed','Cancelled'].map(s=>`<option value="${s}" ${apptFilter===s?'selected':''}>${s==='All'?'All statuses':s}</option>`).join('')}
+            ${['All','Requested','Reschedule Requested','Scheduled','Completed','Rejected','Cancelled'].map(s=>`<option value="${s}" ${apptFilter===s?'selected':''}>${s==='All'?'All statuses':s}</option>`).join('')}
           </select>
           ${role==='Administrator'||role==='Clinic Staff' ? `<select class="filter-select" id="appt-dentist-filter"><option value="All">All dentists</option>${dentists.map(d=>`<option value="${escapeHtml(d.id)}" ${apptDentistFilter===d.id?'selected':''}>${escapeHtml(d.name)}</option>`).join('')}</select>` : ''}
           <select class="filter-select" id="appt-type-filter"><option value="All">All services</option>${APPT_TYPES.map(type=>`<option value="${escapeHtml(type)}" ${apptTypeFilter===type?'selected':''}>${escapeHtml(type)}</option>`).join('')}</select>
@@ -50,10 +50,12 @@ function renderAppointments(){
   document.getElementById('appt-dentist-filter')?.addEventListener('change', (e)=>{ apptDentistFilter = e.target.value; renderAppointments(); });
   document.querySelectorAll('[data-appt-view]').forEach(button=>button.addEventListener('click', ()=>{ apptViewMode = button.dataset.apptView; renderAppointments(); }));
   document.getElementById('appt-focus-date')?.addEventListener('change', (e)=>{ apptFocusDate = e.target.value || todayISO(); renderAppointments(); });
-  if(canAdd) document.getElementById('add-appt-btn').addEventListener('click', ()=> openAppointmentForm('add'));
+  if(canAdd) document.getElementById('add-appt-btn').addEventListener('click', ()=> role==='Patient' ? navigateTo('clinics') : openAppointmentForm('add'));
 
   root.querySelectorAll('[data-confirm-appt]').forEach(el=> el.addEventListener('click', ()=> setApptStatus(el.dataset.confirmAppt, 'Scheduled', 'Appointment confirmed.')));
+  root.querySelectorAll('[data-reject-appt]').forEach(el=> el.addEventListener('click', ()=> openRejectAppointment(el.dataset.rejectAppt)));
   root.querySelectorAll('[data-complete-appt]').forEach(el=> el.addEventListener('click', ()=> setApptStatus(el.dataset.completeAppt, 'Completed', 'Appointment marked as completed.')));
+  root.querySelectorAll('[data-reschedule-appt]').forEach(el=> el.addEventListener('click', ()=> openRescheduleForm(el.dataset.rescheduleAppt)));
   root.querySelectorAll('[data-cancel-appt]').forEach(el=> el.addEventListener('click', ()=>{
     openConfirm('The patient and clinic team will need to reschedule if care is still needed.', 'Cancel this appointment?', ()=>{
       setApptStatus(el.dataset.cancelAppt, 'Cancelled', 'Appointment cancelled.');
@@ -97,22 +99,59 @@ async function setApptStatus(id, status, msg){
   }
 }
 
+async function openRejectAppointment(id){
+  const reason=await promptForReason('Reject appointment','Explain why the clinic cannot accept this visit.');
+  if(reason===null)return;
+  try{
+    const updated=await apiPatch(`/appointments/${id}/status`,{status:'Rejected',reason});
+    const appointment=state.appointments.find(item=>String(item.id)===String(id));
+    if(appointment)Object.assign(appointment,updated);
+    state.notifications=await apiGet('/notifications');
+    renderSidebarNav();renderNotifications();renderAppointments();
+    showToast('Appointment rejected with a reason.','success');
+  }catch(error){showToast(error.message,'error');}
+}
+
+function openRescheduleForm(id){
+  const appointment=state.appointments.find(item=>String(item.id)===String(id));
+  if(!appointment)return;
+  const fields=[
+    {key:'date',label:'New date',type:'date',required:true,notPast:true},
+    {key:'time',label:'New time',type:'select',required:true,options:TIME_SLOTS},
+    {key:'reason',label:'Reason for rescheduling',type:'textarea',required:true},
+  ];
+  openModal(`<div class="modal-header"><h3>Request a new appointment time</h3><button class="modal-close" data-close-modal>${ICONS.close}</button></div><form id="reschedule-form"><div class="modal-body">${fieldHtml(fields[0],'')}${fieldHtml(fields[1],'')}${fieldHtml(fields[2],'')}<p class="field-hint">Your current appointment remains until the clinic approves this request.</p></div><div class="modal-footer"><button type="button" class="btn btn-outline" data-close-modal>Cancel</button><button type="submit" class="btn btn-primary">Send request</button></div></form>`);
+  bindModalClose();
+  document.getElementById('reschedule-form').addEventListener('submit',async event=>{
+    event.preventDefault();const {valid,values}=validateFields(fields);if(!valid)return;
+    const button=event.target.querySelector('[type="submit"]');button.disabled=true;
+    try{
+      const updated=await apiPost(`/appointments/${id}/reschedule`,values);
+      Object.assign(appointment,updated);
+      state.notifications=await apiGet('/notifications');
+      closeModal();renderSidebarNav();renderNotifications();renderAppointments();
+      showToast('Reschedule request sent to the clinic.','success');
+    }catch(error){button.disabled=false;showToast(error.message,'error');}
+  });
+}
+
 function buildApptTable(list, role, canManage){
   return `<table><thead><tr>
     <th>Patient</th><th>Dentist</th><th>Date &amp; Time</th><th>Type</th><th>Status</th><th></th>
   </tr></thead><tbody>
   ${list.map(a=>{
     const actions = [];
-    if(canManage && a.status==='Requested') actions.push(`<button class="icon-btn" data-confirm-appt="${a.id}" title="Confirm">${ICONS.check}</button>`);
+    if(canManage && (a.status==='Requested'||a.status==='Reschedule Requested')) actions.push(`<button class="icon-btn" data-confirm-appt="${a.id}" title="${a.status==='Requested'?'Confirm appointment':'Approve new time'}">${ICONS.check}</button>`);
+    if(canManage && (a.status==='Requested'||a.status==='Reschedule Requested')) actions.push(`<button class="btn btn-outline btn-sm" data-reject-appt="${a.id}">Reject</button>`);
     if(role==='Dentist' && a.status==='Scheduled') actions.push(`<button class="icon-btn" data-complete-appt="${a.id}" title="Mark completed">${ICONS.check}</button>`);
     if((canManage) && (a.status==='Scheduled'||a.status==='Requested')) actions.push(`<button class="icon-btn" data-edit-appt="${a.id}" title="Edit">${ICONS.edit}</button>`);
-    if(role==='Patient' && (a.status==='Scheduled'||a.status==='Requested')) actions.push(`<button class="icon-btn danger" data-cancel-appt="${a.id}" title="Cancel">${ICONS.close}</button>`);
-    if(canManage && a.status!=='Requested') actions.push(`<button class="icon-btn danger" data-cancel-appt="${a.id}" title="Cancel">${ICONS.close}</button>`);
+    if(role==='Patient' && (a.status==='Scheduled'||a.status==='Requested')) actions.push(`<button class="btn btn-outline btn-sm" data-reschedule-appt="${a.id}">Reschedule</button><button class="icon-btn danger" data-cancel-appt="${a.id}" title="Cancel">${ICONS.close}</button>`);
+    if(canManage && (a.status==='Scheduled'||a.status==='Requested'||a.status==='Reschedule Requested')) actions.push(`<button class="icon-btn danger" data-cancel-appt="${a.id}" title="Cancel">${ICONS.close}</button>`);
     if(canManage) actions.push(`<button class="icon-btn danger" data-delete-appt="${a.id}" title="Delete">${ICONS.trash}</button>`);
     return `<tr data-appointment-id="${a.id}" data-dentist-appointment="${a.dentistId}">
       <td><div class="cell-name">${escapeHtml(patientName(a.patientId))}</div></td>
       <td>${escapeHtml(dentistName(a.dentistId))}</td>
-      <td>${formatDate(a.date)}<div class="cell-sub">${a.time}</div></td>
+      <td>${formatDate(a.date)}<div class="cell-sub">${a.time}</div>${a.status==='Reschedule Requested'?`<div class="cell-sub">Requested: ${formatDate(a.rescheduleDate)} · ${escapeHtml(a.rescheduleTime)}</div><div class="cell-sub">${escapeHtml(a.rescheduleReason)}</div>`:''}${a.status==='Rejected'&&a.rejectionReason?`<div class="cell-sub">Reason: ${escapeHtml(a.rejectionReason)}</div>`:''}</td>
       <td>${escapeHtml(a.type)}</td>
       <td>${statusBadge(a.status)}</td>
       <td><div class="row-actions">${actions.join('')}</div></td>

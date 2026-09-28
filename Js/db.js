@@ -10,15 +10,19 @@
    step anymore.
 ====================================================================== */
 
-async function loadDB(){
-  const [dentistList, patientList, appointmentList, recordList, prescriptionList, transactionList, serviceList] = await Promise.all([
+async function loadDB(user){
+  const transactionRequest = user.role === 'Dentist' ? Promise.resolve([]) : apiGet('/transactions');
+  const [dentistList, patientList, appointmentList, recordList, prescriptionList, transactionList, serviceList, clinicList, followUpList, notificationList] = await Promise.all([
     apiGet('/dentists'),
     apiGet('/patients'),
     apiGet('/appointments'),
     apiGet('/records'),
     apiGet('/prescriptions'),
-    apiGet('/transactions'),
+    transactionRequest,
     apiGet('/services'),
+    apiGet('/clinics'),
+    apiGet('/follow-ups'),
+    apiGet('/notifications'),
   ]);
 
   dentists.length = 0;
@@ -30,6 +34,9 @@ async function loadDB(){
   state.prescriptions = prescriptionList;
   state.transactions = transactionList;
   state.services = serviceList;
+  state.clinics = clinicList;
+  state.followUps = followUpList;
+  state.notifications = notificationList;
 }
 
 // Used on the login/signup screen, before anyone is signed in: just the

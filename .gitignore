@@ -1,2 +1,4 @@
 /.env
 /Js/.env
+/Js/.dev-session-secret
+/Js/uploads/

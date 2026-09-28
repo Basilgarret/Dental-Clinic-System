@@ -77,11 +77,58 @@ function initAppShell() {
     closeGlobalSearch();
   });
   notificationPanel.addEventListener('click', (event) => {
-    const action = event.target.closest('[data-notification-view]');
+    const markAll = event.target.closest('[data-notification-read-all]');
+    if (markAll) {
+      apiPatch('/notifications/read-all', {}).then(() => {
+        state.notifications.forEach(notification => { notification.readAt = new Date().toISOString(); });
+        renderNotifications();
+      }).catch(error => showToast(error.message, 'error'));
+      return;
+    }
+    const toggleRead = event.target.closest('[data-notification-toggle-read]');
+    if (toggleRead) {
+      const notification = state.notifications.find(item => String(item.id) === toggleRead.dataset.notificationToggleRead);
+      if (!notification) return;
+      const action = notification.readAt ? 'unread' : 'read';
+      apiPatch(`/notifications/${notification.id}/${action}`, {}).then(result => {
+        notification.readAt = result.readAt;
+        renderNotifications();
+      }).catch(error => showToast(error.message, 'error'));
+      return;
+    }
+    const deleteNotification = event.target.closest('[data-notification-delete]');
+    if (deleteNotification) {
+      const notification = state.notifications.find(item => String(item.id) === deleteNotification.dataset.notificationDelete);
+      if (!notification) return;
+      openConfirm('This permanently removes the notification from your account.', 'Delete notification?', async () => {
+        try {
+          await apiDelete(`/notifications/${notification.id}`);
+          state.notifications = state.notifications.filter(item => String(item.id) !== String(notification.id));
+          renderNotifications();
+          showToast('Notification deleted.', 'success');
+        } catch (error) {
+          showToast(error.message, 'error');
+        }
+      });
+      return;
+    }
+    const action = event.target.closest('[data-notification-id]');
     if (!action) return;
+    const notification = state.notifications.find(item => String(item.id) === action.dataset.notificationId);
+    if (notification && !notification.readAt) {
+      apiPatch(`/notifications/${notification.id}/read`, {}).then(result => {
+        notification.readAt = result.readAt;
+        renderNotifications();
+      }).catch(error => showToast(error.message, 'error'));
+    }
     notificationPanel.classList.add('hidden');
     notificationToggle.setAttribute('aria-expanded', 'false');
-    navigateTo(action.dataset.notificationView);
+    const view = notification?.entityType === 'clinic'
+      ? (state.currentUser.role === 'Administrator' ? 'clinicApprovals' : 'clinicProfile')
+      : notification?.entityType === 'follow_up' ? 'followUps'
+        : notification?.entityType === 'appointment' ? 'appointments'
+          : notification?.entityType === 'transaction' ? 'transactions' : null;
+    if (view) navigateTo(view);
   });
 
   document.addEventListener('click', (event) => {
@@ -164,25 +211,17 @@ function renderGlobalSearch(rawQuery) {
 }
 
 function renderNotifications() {
-  const role = state.currentUser?.role;
-  const requested = state.appointments.filter((appointment) => appointment.status === 'Requested' && (
-    role === 'Patient' ? appointment.patientId === state.currentUser.id
-      : role === 'Dentist' ? appointment.dentistId === state.currentUser.id : true
-  ));
-  const unpaid = state.transactions.filter((transaction) => (transaction.status === 'Overdue' || transaction.status === 'Pending') && (
-    role === 'Patient' ? transaction.patientId === state.currentUser.id
-      : role === 'Administrator' || role === 'Clinic Staff'
-  ));
-  const count = requested.length + unpaid.length;
+  const notifications = state.notifications || [];
+  const unread = notifications.filter(notification => !notification.readAt);
+  const count = unread.length;
   const badge = document.getElementById('notification-count');
   const panel = document.getElementById('notification-panel');
   badge.textContent = count > 9 ? '9+' : String(count);
   badge.classList.toggle('hidden', count === 0);
 
-  const items = [];
-  if (requested.length) items.push(`<button type="button" data-notification-view="appointments"><span class="notification-mark">${ICONS.appointments}</span><span><strong>${requested.length} appointment ${requested.length === 1 ? 'request' : 'requests'}</strong><small>Waiting for clinic confirmation</small></span></button>`);
-  if (unpaid.length) items.push(`<button type="button" data-notification-view="transactions"><span class="notification-mark">${ICONS.transactions}</span><span><strong>${unpaid.length} outstanding ${unpaid.length === 1 ? 'payment' : 'payments'}</strong><small>Review pending and overdue balances</small></span></button>`);
-  panel.innerHTML = `<div class="notification-heading"><strong>Notifications</strong><span>${count} open</span></div>${items.length ? items.join('') : '<p class="notification-empty">You are all caught up.</p>'}`;
+  const icons = { appointment:ICONS.appointments, clinic:ICONS.records, clinic_document:ICONS.records, follow_up:ICONS.clock, payment:ICONS.transactions };
+  const items = notifications.slice(0,30).map(notification=>`<div class="notification-row ${notification.readAt?'read':''}"><button type="button" class="notification-item" data-notification-id="${escapeHtml(notification.id)}"><span class="notification-mark">${icons[notification.type]||ICONS.info}</span><span class="notification-copy"><strong>${escapeHtml(notification.title)}</strong><small>${escapeHtml(notification.message)}</small><time>${new Date(notification.createdAt).toLocaleString()}</time></span>${notification.readAt?'':'<i aria-label="Unread"></i>'}</button><div class="notification-actions"><button type="button" class="notification-action" data-notification-toggle-read="${escapeHtml(notification.id)}" aria-label="${notification.readAt?'Mark as unread':'Mark as read'}" title="${notification.readAt?'Mark as unread':'Mark as read'}">${notification.readAt?ICONS.info:ICONS.check}</button><button type="button" class="notification-action danger" data-notification-delete="${escapeHtml(notification.id)}" aria-label="Delete notification" title="Delete notification">${ICONS.trash}</button></div></div>`);
+  panel.innerHTML = `<div class="notification-heading"><strong>Notifications</strong>${count?`<button type="button" data-notification-read-all>Mark all read</button>`:'<span>Up to date</span>'}</div>${items.length ? items.join('') : '<p class="notification-empty">You are all caught up.</p>'}`;
 }
 
 function renderDentists() {
