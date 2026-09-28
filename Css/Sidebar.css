@@ -14,6 +14,9 @@
   position: sticky;
   top:0;
   height:100vh;
+  overflow:hidden;
+  transition:width .2s ease, left .2s ease;
+  z-index:40;
 }
 .sidebar-brand{
   display:flex; align-items:center; gap:10px;
@@ -32,9 +35,16 @@
 .sidebar-nav{ flex:1; padding: 4px 12px; overflow-y:auto; }
 .nav-item{
   display:flex; align-items:center; gap:11px;
+  width:100%;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   cursor:pointer;
+  text-align:left;
+  border-top:0;
+  border-right:0;
+  border-bottom:0;
+  background:transparent;
+  font-family:inherit;
   font-size:13.8px;
   font-weight:500;
   color: rgba(234,246,255,0.9);
@@ -68,3 +78,21 @@
 }
 .logout-btn:hover{ background: rgba(255,255,255,0.08); }
 .logout-btn svg{ width:15px; height:15px; }
+
+.sidebar-overlay{ display:none; }
+#app-shell.sidebar-collapsed .sidebar{ width:76px; }
+#app-shell.sidebar-collapsed .sidebar-brand{ justify-content:center; padding:22px 8px 18px; }
+#app-shell.sidebar-collapsed .sidebar-brand span,
+#app-shell.sidebar-collapsed .sidebar-role,
+#app-shell.sidebar-collapsed .nav-item > span:not(.nav-badge),
+#app-shell.sidebar-collapsed .sidebar-user > div{ display:none; }
+#app-shell.sidebar-collapsed .sidebar-nav{ padding-right:9px; padding-left:9px; }
+#app-shell.sidebar-collapsed .nav-item{ justify-content:center; padding:11px 8px; border-left:0; }
+#app-shell.sidebar-collapsed .nav-item svg{ width:20px; height:20px; }
+#app-shell.sidebar-collapsed .nav-badge{ position:absolute; top:2px; right:1px; margin:0; padding:0 4px; font-size:9px; }
+#app-shell.sidebar-collapsed .sidebar-footer{ padding:14px 9px 18px; }
+#app-shell.sidebar-collapsed .sidebar-user{ justify-content:center; }
+#app-shell.sidebar-collapsed .logout-btn{ font-size:0; padding:10px; }
+#app-shell.sidebar-collapsed .logout-btn svg{ width:18px; height:18px; }
+
+.nav-item:focus-visible,.logout-btn:focus-visible{ outline:2px solid var(--primary-light); outline-offset:2px; }

@@ -59,6 +59,7 @@ const state = {
       { name:'Paracetamol', dosage:'500mg', frequency:'Every 6 hours as needed', duration:'5 days' },
     ]},
   ],
+  services: [],
   transactions: [
     { id:'T1', patientId:'P1', date:'2026-03-11', description:'Composite Filling (x2 teeth)', amount:4200, method:'Cash', status:'Paid' },
     { id:'T2', patientId:'P2', date:'2026-06-20', description:'In-office Teeth Whitening', amount:6500, method:'Card', status:'Paid' },

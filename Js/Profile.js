@@ -52,13 +52,30 @@ function openProfileEditForm(p){
     </form>`;
   openModal(html);
   bindModalClose();
-  document.getElementById('profile-form').addEventListener('submit', (e)=>{
+  document.getElementById('profile-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const { valid, values } = validateFields(fields);
     if(!valid) return;
-    Object.assign(p, values);
-    showToast('Your information has been updated.', 'success');
-    closeModal();
-    renderProfile();
+
+    const submitBtn = e.target.querySelector('button[type=submit]');
+    const originalLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving\u2026';
+
+    try{
+      // The backend's PUT /patients/:id replaces the whole record, so we
+      // send every field back — the unchanged ones from `p`, plus the
+      // edited ones from this form.
+      const payload = Object.assign({}, p, values);
+      const updated = await apiPut('/patients/' + p.id, payload);
+      Object.assign(p, updated);
+      showToast('Your information has been updated.', 'success');
+      closeModal();
+      renderProfile();
+    }catch(err){
+      showToast(err.message, 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
+    }
   });
 }

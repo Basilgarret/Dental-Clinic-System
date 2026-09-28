@@ -38,18 +38,30 @@ function renderTransactions(){
 
   root.querySelectorAll('[data-edit-tx]').forEach(el=> el.addEventListener('click', ()=> openTransactionForm('edit', el.dataset.editTx)));
   root.querySelectorAll('[data-delete-tx]').forEach(el=> el.addEventListener('click', ()=>{
-    openConfirm('This will permanently remove this transaction record.', 'Delete this transaction?', ()=>{
-      state.transactions = state.transactions.filter(t=>t.id!==el.dataset.deleteTx);
-      showToast('Transaction deleted.', 'success');
-      renderTransactions();
+    openConfirm('This will permanently remove this transaction record.', 'Delete this transaction?', async ()=>{
+      try{
+        await apiDelete('/transactions/' + el.dataset.deleteTx);
+        state.transactions = state.transactions.filter(t=>t.id!==el.dataset.deleteTx);
+        showToast('Transaction deleted.', 'success');
+        renderNotifications();
+        renderTransactions();
+      }catch(err){
+        showToast(err.message, 'error');
+      }
     });
   }));
   root.querySelectorAll('[data-pay-tx]').forEach(el=> el.addEventListener('click', ()=>{
     const t = state.transactions.find(x=>x.id===el.dataset.payTx);
-    openConfirm(`Confirm payment of ${formatMoney(t.amount)} for "${t.description}".`, 'Pay this invoice?', ()=>{
-      t.status = 'Paid';
-      showToast('Payment recorded. Thank you!', 'success');
-      renderTransactions();
+    openConfirm(`Confirm payment of ${formatMoney(t.amount)} for "${t.description}".`, 'Pay this invoice?', async ()=>{
+      try{
+        const updated = await apiPatch('/transactions/' + t.id + '/status', { status: 'Paid' });
+        Object.assign(t, updated);
+        showToast('Payment recorded. Thank you!', 'success');
+        renderNotifications();
+        renderTransactions();
+      }catch(err){
+        showToast(err.message, 'error');
+      }
     }, 'neutral');
   }));
 }
@@ -59,7 +71,7 @@ function buildTxTable(list, role, canEdit){
     ${role!=='Patient' ? '<th>Patient</th>' : ''}<th>Date</th><th>Description</th><th>Amount</th><th>Method</th><th>Status</th><th></th>
   </tr></thead><tbody>
   ${list.map(t=>`
-    <tr>
+    <tr data-transaction-id="${t.id}">
       ${role!=='Patient' ? `<td><div class="cell-name">${escapeHtml(patientName(t.patientId))}</div></td>` : ''}
       <td>${formatDate(t.date)}</td>
       <td>${escapeHtml(t.description)}</td>
@@ -109,19 +121,34 @@ function openTransactionForm(mode, id){
     </form>`;
   openModal(html);
   bindModalClose();
-  document.getElementById('tx-form').addEventListener('submit', (e)=>{
+  document.getElementById('tx-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const { valid, values } = validateFields(txFields);
     if(!valid) return;
     values.amount = Number(values.amount);
-    if(editing){
-      Object.assign(editing, values);
-      showToast('Transaction updated.', 'success');
-    } else {
-      state.transactions.push(Object.assign({ id: genId('T') }, values));
-      showToast('Transaction recorded.', 'success');
+
+    const submitBtn = e.target.querySelector('button[type=submit]');
+    const originalLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving\u2026';
+
+    try{
+      if(editing){
+        const updated = await apiPut('/transactions/' + editing.id, values);
+        Object.assign(editing, updated);
+        showToast('Transaction updated.', 'success');
+      } else {
+        const newTx = await apiPost('/transactions', values);
+        state.transactions.push(newTx);
+        showToast('Transaction recorded.', 'success');
+      }
+      closeModal();
+      renderNotifications();
+      renderTransactions();
+    }catch(err){
+      showToast(err.message, 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
     }
-    closeModal();
-    renderTransactions();
   });
 }

@@ -2,6 +2,10 @@
    APPOINTMENTS MODULE
 ====================================================================== */
 let apptFilter = 'All';
+let apptViewMode = 'list';
+let apptFocusDate = todayISO();
+let apptDentistFilter = 'All';
+let apptTypeFilter = 'All';
 function renderAppointments(){
   const role = state.currentUser.role;
   const root = document.getElementById('view-content');
@@ -9,7 +13,14 @@ function renderAppointments(){
   if(role==='Dentist') list = list.filter(a=>a.dentistId===state.currentUser.id);
   if(role==='Patient') list = list.filter(a=>a.patientId===state.currentUser.id);
   if(apptFilter!=='All') list = list.filter(a=>a.status===apptFilter);
-  list = list.sort((a,b)=> b.date.localeCompare(a.date) || a.time.localeCompare(b.time));
+  if(apptDentistFilter!=='All') list = list.filter(a=>a.dentistId===apptDentistFilter);
+  if(apptTypeFilter!=='All') list = list.filter(a=>a.type===apptTypeFilter);
+  if(apptViewMode==='day') list = list.filter(a=>a.date===apptFocusDate);
+  if(apptViewMode==='week'){
+    const [weekStart, weekEnd] = appointmentWeekRange(apptFocusDate);
+    list = list.filter(a=>a.date>=weekStart && a.date<=weekEnd);
+  }
+  list = list.sort((a,b)=> a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
   const canManage = role==='Administrator' || role==='Clinic Staff';
   const canAdd = role!=='Dentist';
@@ -22,6 +33,10 @@ function renderAppointments(){
           <select class="filter-select" id="appt-filter">
             ${['All','Requested','Scheduled','Completed','Cancelled'].map(s=>`<option value="${s}" ${apptFilter===s?'selected':''}>${s==='All'?'All statuses':s}</option>`).join('')}
           </select>
+          ${role==='Administrator'||role==='Clinic Staff' ? `<select class="filter-select" id="appt-dentist-filter"><option value="All">All dentists</option>${dentists.map(d=>`<option value="${escapeHtml(d.id)}" ${apptDentistFilter===d.id?'selected':''}>${escapeHtml(d.name)}</option>`).join('')}</select>` : ''}
+          <select class="filter-select" id="appt-type-filter"><option value="All">All services</option>${APPT_TYPES.map(type=>`<option value="${escapeHtml(type)}" ${apptTypeFilter===type?'selected':''}>${escapeHtml(type)}</option>`).join('')}</select>
+          <div class="segmented-control" role="group" aria-label="Appointment view">${[['list','List'],['day','Day'],['week','Week']].map(([mode,label])=>`<button type="button" data-appt-view="${mode}" aria-pressed="${apptViewMode===mode}">${label}</button>`).join('')}</div>
+          ${apptViewMode!=='list' ? `<label class="appointment-date-label"><span>${apptViewMode==='day'?'Day':'Week of'}</span><input type="date" id="appt-focus-date" value="${apptFocusDate}" aria-label="Choose appointment date"></label>` : ''}
         </div>
         ${canAdd ? `<button class="btn btn-primary" id="add-appt-btn">${ICONS.plus} ${addLabel}</button>` : ''}
       </div>
@@ -31,6 +46,10 @@ function renderAppointments(){
     </div>`;
 
   document.getElementById('appt-filter').addEventListener('change', (e)=>{ apptFilter = e.target.value; renderAppointments(); });
+  document.getElementById('appt-type-filter').addEventListener('change', (e)=>{ apptTypeFilter = e.target.value; renderAppointments(); });
+  document.getElementById('appt-dentist-filter')?.addEventListener('change', (e)=>{ apptDentistFilter = e.target.value; renderAppointments(); });
+  document.querySelectorAll('[data-appt-view]').forEach(button=>button.addEventListener('click', ()=>{ apptViewMode = button.dataset.apptView; renderAppointments(); }));
+  document.getElementById('appt-focus-date')?.addEventListener('change', (e)=>{ apptFocusDate = e.target.value || todayISO(); renderAppointments(); });
   if(canAdd) document.getElementById('add-appt-btn').addEventListener('click', ()=> openAppointmentForm('add'));
 
   root.querySelectorAll('[data-confirm-appt]').forEach(el=> el.addEventListener('click', ()=> setApptStatus(el.dataset.confirmAppt, 'Scheduled', 'Appointment confirmed.')));
@@ -42,20 +61,40 @@ function renderAppointments(){
   }));
   root.querySelectorAll('[data-edit-appt]').forEach(el=> el.addEventListener('click', ()=> openAppointmentForm('edit', el.dataset.editAppt)));
   root.querySelectorAll('[data-delete-appt]').forEach(el=> el.addEventListener('click', ()=>{
-    openConfirm('This will permanently remove this appointment from the schedule.', 'Delete this appointment?', ()=>{
-      state.appointments = state.appointments.filter(a=>a.id!==el.dataset.deleteAppt);
-      showToast('Appointment deleted.', 'success');
-      renderSidebarNav(); renderAppointments();
+    openConfirm('This will permanently remove this appointment from the schedule.', 'Delete this appointment?', async ()=>{
+      try{
+        await apiDelete('/appointments/' + el.dataset.deleteAppt);
+        state.appointments = state.appointments.filter(a=>a.id!==el.dataset.deleteAppt);
+        showToast('Appointment deleted.', 'success');
+        renderSidebarNav(); renderAppointments();
+      }catch(err){
+        showToast(err.message, 'error');
+      }
     });
   }));
 }
 
-function setApptStatus(id, status, msg){
-  const a = state.appointments.find(x=>x.id===id);
-  a.status = status;
-  showToast(msg, 'success');
-  renderSidebarNav();
-  renderAppointments();
+function appointmentWeekRange(value){
+  const [year, month, day] = value.split('-').map(Number);
+  const start = new Date(year, month - 1, day);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const toISO = date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+  return [toISO(start), toISO(end)];
+}
+
+async function setApptStatus(id, status, msg){
+  try{
+    const updated = await apiPatch('/appointments/' + id + '/status', { status });
+    const a = state.appointments.find(x=>x.id===id);
+    Object.assign(a, updated);
+    showToast(msg, 'success');
+    renderSidebarNav();
+    renderAppointments();
+  }catch(err){
+    showToast(err.message, 'error');
+  }
 }
 
 function buildApptTable(list, role, canManage){
@@ -70,7 +109,7 @@ function buildApptTable(list, role, canManage){
     if(role==='Patient' && (a.status==='Scheduled'||a.status==='Requested')) actions.push(`<button class="icon-btn danger" data-cancel-appt="${a.id}" title="Cancel">${ICONS.close}</button>`);
     if(canManage && a.status!=='Requested') actions.push(`<button class="icon-btn danger" data-cancel-appt="${a.id}" title="Cancel">${ICONS.close}</button>`);
     if(canManage) actions.push(`<button class="icon-btn danger" data-delete-appt="${a.id}" title="Delete">${ICONS.trash}</button>`);
-    return `<tr>
+    return `<tr data-appointment-id="${a.id}" data-dentist-appointment="${a.dentistId}">
       <td><div class="cell-name">${escapeHtml(patientName(a.patientId))}</div></td>
       <td>${escapeHtml(dentistName(a.dentistId))}</td>
       <td>${formatDate(a.date)}<div class="cell-sub">${a.time}</div></td>
@@ -92,7 +131,7 @@ function openAppointmentForm(mode, id){
     {key:'dentistId', label:'Dentist', type:'select', required:true, options:()=>dentists.map(d=>({value:d.id,label:d.name}))},
     {key:'date', label:'Date', type:'date', required:true, notPast: !editing},
     {key:'time', label:'Time', type:'select', required:true, options:TIME_SLOTS},
-    {key:'type', label:'Appointment Type', type:'select', required:true, options:APPT_TYPES},
+    {key:'type', label:'Appointment Type', type:'select', required:true, options:()=>[...new Set([...APPT_TYPES, ...state.services.filter(service=>service.active).map(service=>service.name)])]},
     {key:'notes', label:'Notes', type:'textarea', required:false, placeholder:'Reason for visit, symptoms, etc.'},
   ];
 
@@ -121,14 +160,15 @@ function openAppointmentForm(mode, id){
   openModal(html);
   bindModalClose();
 
-  document.getElementById('appt-form').addEventListener('submit', (e)=>{
+  document.getElementById('appt-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const activeFields = isPatientBooking ? fields.filter(f=>f.key!=='patientId') : fields;
     const { valid, values } = validateFields(activeFields);
     if(!valid) return;
     if(isPatientBooking) values.patientId = state.currentUser.id;
 
-    // double-booking check
+    // Quick client-side double-booking check for instant feedback; the
+    // server checks again too (source of truth, and covers race conditions).
     const conflict = state.appointments.find(a =>
       a.dentistId===values.dentistId && a.date===values.date && a.time===values.time &&
       a.status!=='Cancelled' && (!editing || a.id!==editing.id));
@@ -139,16 +179,37 @@ function openAppointmentForm(mode, id){
       return;
     }
 
-    if(editing){
-      Object.assign(editing, values);
-      showToast('Appointment updated successfully.', 'success');
-    } else {
-      const status = isPatientBooking ? 'Requested' : 'Scheduled';
-      state.appointments.push(Object.assign({ id: genId('AP'), status }, values));
-      showToast(isPatientBooking ? 'Appointment request submitted.' : 'Appointment scheduled successfully.', 'success');
+    const submitBtn = e.target.querySelector('button[type=submit]');
+    const originalLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving\u2026';
+
+    try{
+      if(editing){
+        const updated = await apiPut('/appointments/' + editing.id, values);
+        Object.assign(editing, updated);
+        showToast('Appointment updated successfully.', 'success');
+      } else {
+        const status = isPatientBooking ? 'Requested' : 'Scheduled';
+        const newAppt = await apiPost('/appointments', Object.assign({ status }, values));
+        state.appointments.push(newAppt);
+        showToast(isPatientBooking ? 'Appointment request submitted.' : 'Appointment scheduled successfully.', 'success');
+      }
+      closeModal();
+      renderSidebarNav();
+      renderAppointments();
+    }catch(err){
+      // The server's own conflict check (409) lands here too, in case two
+      // people booked the same slot at almost the same moment.
+      if(/already has an appointment/i.test(err.message)){
+        const wrap = document.getElementById('field-time');
+        wrap.classList.add('error');
+        wrap.querySelector('.field-error').textContent = err.message;
+      } else {
+        showToast(err.message, 'error');
+      }
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
     }
-    closeModal();
-    renderSidebarNav();
-    renderAppointments();
   });
 }

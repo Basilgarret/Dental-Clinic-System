@@ -1,0 +1,26 @@
+{
+  "name": "dental-clinic-system",
+  "version": "1.0.0",
+  "description": "// Welcome to our project //\r Instructor: Jaafar Omar (Handsome just like Basil)",
+  "main": "index.js",
+  "scripts": {
+    "start": "npm --prefix Js start",
+    "migrate": "npm --prefix Js run migrate",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Basilgarret/Dental-Clinic-System.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Basilgarret/Dental-Clinic-System/issues"
+  },
+  "homepage": "https://github.com/Basilgarret/Dental-Clinic-System#readme",
+  "dependencies": {
+    "package.json": "^0.0.0"
+  }
+}

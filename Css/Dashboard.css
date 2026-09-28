@@ -3,17 +3,96 @@
 ============================================================ */
 
 /* ============ STAT CARDS ============ */
-.stat-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; margin-bottom:26px; }
+.stat-grid{ display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:14px; margin-bottom:22px; }
 .stat-card{
   background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md);
-  padding: 18px 20px;
+  padding: 17px 18px; box-shadow:var(--shadow-card); min-width:0;
 }
-.stat-card .label{ font-size:12px; color: var(--text-muted); font-weight:600; }
-.stat-card .value{ font-family: var(--font-serif); font-size:28px; margin-top:8px; font-weight:600; }
-.stat-card .hint{ font-size:12px; color: var(--text-faint); margin-top:6px; }
-.stat-card.accent{ border-color: rgba(185,138,46,0.4); background: linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 90px); }
+.stat-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.stat-card .label{ font-size:11.5px; color: var(--text-muted); font-weight:700; }
+.stat-card .value{ font-family: var(--font-sans); font-size:26px; margin-top:12px; font-weight:800; line-height:1.1; overflow-wrap:anywhere; }
+.stat-card .hint{ font-size:11px; color: var(--text-faint); margin-top:7px; }
+.stat-card.accent{ border-color:var(--border); background:var(--surface); }
+.metric-icon{ width:34px; height:34px; border-radius:8px; display:grid; place-items:center; flex-shrink:0; }
+.metric-icon svg{ width:17px; height:17px; }
+.metric-icon.teal{ color:var(--primary); background:var(--info-bg); }
+.metric-icon.blue{ color:#42789B; background:#E8F0F6; }
+.metric-icon.green{ color:var(--success); background:var(--success-bg); }
+.metric-icon.coral{ color:var(--accent); background:var(--accent-soft); }
 
 .dash-grid{ display:grid; grid-template-columns: 1.5fr 1fr; gap:20px; align-items:start; }
+.dashboard-intro{ display:flex; justify-content:space-between; align-items:flex-end; gap:20px; margin:4px 0 22px; }
+.dashboard-intro h1,.directory-heading h1{ margin:5px 0 4px; font-size:25px; }
+.dashboard-intro p,.directory-heading p{ color:var(--text-muted); font-size:12px; }
+.section-eyebrow{ color:var(--primary); font-size:9px; font-weight:800; letter-spacing:.08em; }
+.dashboard-layout{ display:grid; grid-template-columns:minmax(0,1.65fr) minmax(260px,.9fr); gap:18px; align-items:start; }
+.dashboard-side{ display:grid; gap:16px; min-width:0; }
+.dashboard-layout .panel,.dashboard-side .panel{ box-shadow:var(--shadow-card); }
+.panel-subtitle{ color:var(--text-muted); font-size:11px; margin-top:3px; }
+.quick-actions{ gap:7px; }
+.quick-actions .btn{ min-height:40px; }
+.schedule-empty{ display:flex; align-items:center; gap:12px; min-height:112px; padding:18px 20px; }
+.schedule-empty > svg{ width:30px; height:30px; padding:6px; border-radius:8px; background:var(--info-bg); color:var(--info); flex-shrink:0; }
+.schedule-empty > div{ display:grid; gap:3px; flex:1; }
+.schedule-empty strong{ font-size:12px; }
+.schedule-empty span{ color:var(--text-muted); font-size:11px; }
+.activity-list{ padding:4px 15px 7px; }
+.activity-item{ display:grid; grid-template-columns:30px minmax(0,1fr) auto; align-items:center; gap:9px; padding:10px 0; border-bottom:1px solid var(--border); }
+.activity-item:last-child{ border-bottom:0; }
+.activity-icon{ width:28px; height:28px; display:grid; place-items:center; border-radius:50%; background:var(--panel-alt); color:var(--primary); }
+.activity-icon svg{ width:14px; height:14px; }
+.activity-item strong,.activity-item span{ display:block; }
+.activity-item strong{ font-size:10.5px; }
+.activity-item div > span{ overflow:hidden; color:var(--text-muted); font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.activity-item time{ color:var(--text-faint); font-size:9px; white-space:nowrap; }
+
+.directory-heading{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin:3px 0 20px; }
+.directory-count{ display:grid; justify-items:end; color:var(--text-muted); font-size:10px; }
+.directory-count strong{ color:var(--text); font-size:22px; }
+.dentist-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.dentist-card{ min-width:0; padding:17px; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--surface); box-shadow:var(--shadow-card); }
+.dentist-card-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.dentist-avatar{ width:42px; height:42px; display:grid; place-items:center; border-radius:50%; background:var(--info-bg); color:var(--primary); font-size:13px; font-weight:800; }
+.dentist-status{ padding:4px 7px; border-radius:20px; font-size:9px; font-weight:700; }
+.dentist-status.available{ color:var(--success); background:var(--success-bg); }
+.dentist-status.busy{ color:var(--warning); background:var(--warning-bg); }
+.dentist-card h2{ margin:13px 0 3px; font-family:var(--font-sans); font-size:15px; font-weight:750; }
+.dentist-specialty{ color:var(--primary); font-size:11px; font-weight:650; }
+.dentist-card-meta{ display:grid; gap:6px; margin:15px 0; color:var(--text-muted); font-size:10.5px; }
+.dentist-schedule{ width:100%; justify-content:space-between; font-size:11px; }
+.dentist-schedule svg{ width:15px; height:15px; }
+.search-highlight{ animation:search-row-highlight 1.8s ease both; }
+@keyframes search-row-highlight{ 0%,100%{background:transparent} 20%,70%{background:var(--accent-soft)} }
+
+.report-heading{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin:3px 0 20px; }
+.report-heading h1{ margin:5px 0 4px; font-size:25px; }
+.report-heading p{ color:var(--text-muted); font-size:12px; }
+.report-period{ display:grid; gap:5px; color:var(--text-muted); font-size:10px; font-weight:700; }
+.report-period select{ min-height:36px; padding:7px 10px; border:1px solid var(--border-strong); border-radius:var(--radius-sm); background:var(--surface); color:var(--text); font-size:11px; }
+.report-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.report-status-list,.report-service-list{ display:grid; gap:15px; padding:17px 20px; }
+.report-status-row{ display:grid; grid-template-columns:94px minmax(0,1fr) 24px; gap:9px; align-items:center; color:var(--text-muted); font-size:10.5px; }
+.report-status-row strong{ color:var(--text); text-align:right; }
+.report-track{ height:7px; overflow:hidden; border-radius:6px; background:var(--panel-alt); }
+.report-track i{ display:block; height:100%; border-radius:inherit; background:var(--primary); }
+.report-track .status-requested{ background:var(--warning); }
+.report-track .status-completed{ background:var(--success); }
+.report-track .status-cancelled{ background:var(--text-faint); }
+.report-service-row{ display:grid; gap:7px; }
+.report-service-row > div:first-child{ display:flex; align-items:center; justify-content:space-between; color:var(--text-muted); font-size:10.5px; }
+.report-service-row strong{ color:var(--text); }
+.report-dentists{ grid-column:1/-1; }
+.report-dentist-list{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:15px 18px; }
+.report-dentist-row{ display:flex; align-items:center; gap:10px; min-width:0; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); }
+.report-dentist-row .dentist-avatar{ width:34px; height:34px; font-size:10px; }
+.report-dentist-row div{ display:grid; min-width:0; flex:1; }
+.report-dentist-row strong{ overflow:hidden; font-size:10.5px; text-overflow:ellipsis; white-space:nowrap; }
+.report-dentist-row small{ color:var(--text-muted); font-size:9.5px; }
+.report-dentist-row > b{ color:var(--primary); font-size:15px; }
+.report-empty{ padding:12px; color:var(--text-muted); font-size:11px; }
+.service-summary{ margin-top:4px; }
+.service-unit{ margin-left:5px; color:var(--text-muted); font-size:12px; font-weight:700; }
+.service-status-value{ font-size:19px !important; }
 
 .timeline-item{ display:flex; gap:12px; padding: 12px 0; border-bottom:1px solid var(--border); }
 .timeline-item:last-child{ border-bottom:none; }
@@ -24,3 +103,21 @@
 
 .quick-actions{ display:flex; flex-direction:column; gap:8px; }
 .quick-actions .btn{ justify-content:flex-start; }
+
+@media (max-width:1100px){
+  .dashboard-layout{ grid-template-columns:1fr; }
+  .dashboard-side{ grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+  .dentist-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:600px){
+  .dashboard-intro{ align-items:flex-start; flex-direction:column; }
+  .dashboard-intro h1,.directory-heading h1{ font-size:21px; }
+  .dashboard-intro > .btn{ width:100%; }
+  .dashboard-side{ grid-template-columns:1fr; }
+  .activity-item{ grid-template-columns:28px minmax(0,1fr); }
+  .activity-item time{ grid-column:2; }
+  .report-heading{ align-items:flex-start; flex-direction:column; }
+  .report-period,.report-period select{ width:100%; }
+  .report-grid,.report-dentist-list{ grid-template-columns:1fr; }
+  .report-dentists{ grid-column:auto; }
+}

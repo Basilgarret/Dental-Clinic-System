@@ -6,11 +6,11 @@
 #login-screen{
   min-height: 100vh;
   display:flex;
-  background: var(--surface);
+  background: var(--bg);
 }
 .login-brand{
   flex: 1.1;
-  background: radial-gradient(circle at 20% 15%, #3DA8E0 0%, var(--primary-dark) 55%, #0E5188 100%);
+  background: var(--sidebar);
   color: #F2F6FC;
   padding: 64px 60px;
   display:flex;
@@ -20,20 +20,10 @@
   overflow:hidden;
 }
 .login-brand::after{
-  content:"";
-  position:absolute;
-  right:-120px; bottom:-140px;
-  width:420px; height:420px;
-  border-radius:50%;
-  border:1px solid rgba(242,246,243,0.12);
+  display:none;
 }
 .login-brand::before{
-  content:"";
-  position:absolute;
-  right:-40px; bottom:-40px;
-  width:260px; height:260px;
-  border-radius:50%;
-  border:1px solid rgba(242,246,243,0.1);
+  display:none;
 }
 .brand-mark{ display:flex; align-items:center; gap:12px; }
 .brand-mark svg{ width:34px; height:34px; flex-shrink:0; }

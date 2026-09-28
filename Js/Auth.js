@@ -6,9 +6,12 @@ const MENUS = {
     {key:'dashboard', label:'Dashboard', icon:ICONS.dashboard},
     {key:'patients', label:'Patients', icon:ICONS.patients},
     {key:'appointments', label:'Appointments', icon:ICONS.appointments},
+    {key:'dentists', label:'Dentists', icon:ICONS.profile},
+    {key:'services', label:'Treatments & Services', icon:ICONS.tooth},
     {key:'records', label:'Dental Records', icon:ICONS.records},
     {key:'prescriptions', label:'Prescriptions', icon:ICONS.prescriptions},
     {key:'transactions', label:'Transactions', icon:ICONS.transactions},
+    {key:'reports', label:'Reports', icon:ICONS.dashboard},
   ],
   'Dentist': [
     {key:'dashboard', label:'Dashboard', icon:ICONS.dashboard},
@@ -21,6 +24,8 @@ const MENUS = {
     {key:'dashboard', label:'Dashboard', icon:ICONS.dashboard},
     {key:'patients', label:'Patients', icon:ICONS.patients},
     {key:'appointments', label:'Appointments', icon:ICONS.appointments},
+    {key:'dentists', label:'Dentists', icon:ICONS.profile},
+    {key:'services', label:'Treatments & Services', icon:ICONS.tooth},
     {key:'transactions', label:'Transactions', icon:ICONS.transactions},
   ],
   'Patient': [
@@ -33,18 +38,9 @@ const MENUS = {
   ],
 };
 
-const DEMO_ACCOUNTS = [
-  {role:'Administrator', username:'admin1', password:'admin123'},
-  {role:'Dentist', username:'dentist1', password:'dentist123'},
-  {role:'Dentist', username:'dentist2', password:'dentist123'},
-  {role:'Clinic Staff', username:'staff1', password:'staff123'},
-  {role:'Patient', username:'patient1', password:'patient123'},
-  {role:'Patient', username:'patient2', password:'patient123'},
-];
-
 let selectedLoginRole = 'Administrator';
 
-function initLogin(){
+async function initLogin(){
   document.querySelectorAll('.role-tab').forEach(tab=>{
     tab.addEventListener('click', ()=>{
       document.querySelectorAll('.role-tab').forEach(t=>t.classList.remove('active'));
@@ -54,21 +50,7 @@ function initLogin(){
     });
   });
 
-  const chipsRoot = document.getElementById('demo-chips');
-  chipsRoot.innerHTML = DEMO_ACCOUNTS.map(a=>
-    `<span class="demo-chip" data-u="${a.username}" data-p="${a.password}" data-r="${escapeHtml(a.role)}">${escapeHtml(a.role)}: ${a.username}</span>`
-  ).join('');
-  chipsRoot.querySelectorAll('.demo-chip').forEach(chip=>{
-    chip.addEventListener('click', ()=>{
-      document.getElementById('login-username').value = chip.dataset.u;
-      document.getElementById('login-password').value = chip.dataset.p;
-      document.querySelectorAll('.role-tab').forEach(t=>t.classList.toggle('active', t.dataset.role===chip.dataset.r));
-      selectedLoginRole = chip.dataset.r;
-      document.getElementById('login-error').classList.remove('show');
-    });
-  });
-
-  document.getElementById('login-form').addEventListener('submit', (e)=>{
+  document.getElementById('login-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const uField = document.getElementById('field-username');
     const pField = document.getElementById('field-password');
@@ -79,21 +61,56 @@ function initLogin(){
     if(!p){ pField.classList.add('error'); valid = false; } else pField.classList.remove('error');
     if(!valid) return;
 
-    const match = users.find(x=>x.username===u && x.password===p);
     const errBox = document.getElementById('login-error');
-    if(!match){
-      errBox.classList.add('show');
-      return;
-    }
     errBox.classList.remove('show');
-    // Keep the role tabs in sync with whichever account actually signed in.
-    document.querySelectorAll('.role-tab').forEach(t=>t.classList.toggle('active', t.dataset.role===match.role));
-    selectedLoginRole = match.role;
-    logIn(match);
+    const submitBtn = e.target.querySelector('button[type=submit]');
+    const originalLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in\u2026';
+
+    try{
+      const result = await apiPost('/auth/login', { username: u, password: p });
+      // Keep the role tabs in sync with whichever account actually signed in.
+      document.querySelectorAll('.role-tab').forEach(t=>t.classList.toggle('active', t.dataset.role===result.user.role));
+      selectedLoginRole = result.user.role;
+      await logIn(result.user);
+    }catch(err){
+      errBox.textContent = err.message;
+      errBox.classList.add('show');
+    }finally{
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
+    }
   });
+
+  initSignup();
+
+  // Populate the dentist list up front so the Patient sign-up form's
+  // "Preferred Dentist" dropdown has options even before anyone logs in.
+  try{
+    await loadDentists();
+  }catch(err){
+    console.warn('Could not load dentist list yet:', err.message);
+  }
+
+  // A brand-new, empty database has no accounts to sign in with yet —
+  // send people straight to registration instead of a dead-end login form.
+  try{
+    const hasAccounts = await checkHasAccounts();
+    if(!hasAccounts){
+      switchToSignup();
+    }
+  }catch(err){
+    // If the API can't be reached at all, surface that clearly rather
+    // than silently showing an empty login form.
+    const errBox = document.getElementById('login-error');
+    errBox.textContent = err.message;
+    errBox.classList.add('show');
+  }
 }
 
-function logIn(user){
+async function logIn(user){
+  await loadDB();
   state.currentUser = user;
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.remove('hidden');
@@ -102,6 +119,8 @@ function logIn(user){
   document.getElementById('sidebar-role-sub').textContent = user.role;
   document.getElementById('sidebar-role-label').textContent = user.role.toUpperCase() + ' WORKSPACE';
   renderSidebarNav();
+  initAppShell();
+  renderNotifications();
   navigateTo('dashboard');
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric', year:'numeric'});
 }
@@ -112,6 +131,7 @@ function logOut(){
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('login-form').reset();
   document.getElementById('login-error').classList.remove('show');
+  switchToLogin();
   showToast('You have been logged out.', 'info');
 }
 document.getElementById('logout-btn').addEventListener('click', ()=>{
@@ -125,7 +145,7 @@ function renderSidebarNav(){
   nav.innerHTML = MENUS[role].map(item=>{
     const badge = (item.key==='appointments' && (role==='Administrator'||role==='Clinic Staff') && requestedCount>0)
       ? `<span class="nav-badge">${requestedCount}</span>` : '';
-    return `<div class="nav-item" data-view="${item.key}">${item.icon}<span>${item.label}</span>${badge}</div>`;
+    return `<button type="button" class="nav-item" data-view="${item.key}" aria-label="${item.label}">${item.icon}<span>${item.label}</span>${badge}</button>`;
   }).join('');
   nav.querySelectorAll('.nav-item').forEach(el=>{
     el.addEventListener('click', ()=> navigateTo(el.dataset.view));
@@ -136,9 +156,12 @@ const VIEW_TITLES = {
   dashboard: ['Dashboard', 'A snapshot of today at Wellstone Dental.'],
   patients: ['Patients', 'View and manage patient charts.'],
   appointments: ['Appointments', 'Book, confirm and track visits.'],
+  dentists: ['Dentists', 'The clinicians and specialties at your clinic.'],
+  services: ['Treatments & Services', 'Manage the clinic service catalog.'],
   records: ['Dental Records', 'Clinical history and treatment notes.'],
   prescriptions: ['Prescriptions', 'Medications prescribed to patients.'],
   transactions: ['Transactions', 'Invoices and payments.'],
+  reports: ['Reports', 'Clinic activity and payment summaries.'],
   profile: ['My Profile', 'Your personal and contact information.'],
 };
 
@@ -150,6 +173,9 @@ function navigateTo(view){
   document.getElementById('topbar-sub').textContent = sub;
   const renderers = {
     dashboard: renderDashboard, patients: renderPatients, appointments: renderAppointments,
+    dentists: renderDentists,
+    services: renderServices,
+    reports: renderReports,
     records: renderRecords, prescriptions: renderPrescriptions, transactions: renderTransactions,
     profile: renderProfile,
   };

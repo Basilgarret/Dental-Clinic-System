@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wellstone Dental &mdash; Clinic &amp; Patient Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Stylesheets: loaded in this order so later files can safely build on earlier ones -->
+<link rel="stylesheet" href="/Css/Variables.css">
+<link rel="stylesheet" href="/Css/Base.css">
+<link rel="stylesheet" href="/Css/Buttons.css">
+<link rel="stylesheet" href="/Css/Forms.css">
+<link rel="stylesheet" href="/Css/Login.css">
+<link rel="stylesheet" href="/Css/Sidebar.css">
+<link rel="stylesheet" href="/Css/Topbar.css">
+<link rel="stylesheet" href="/Css/Dashboard.css">
+<link rel="stylesheet" href="/Css/Tables.css">
+<link rel="stylesheet" href="/Css/Modal.css">
+<link rel="stylesheet" href="/Css/Toast.css">
+<link rel="stylesheet" href="/Css/Responsive.css">
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="login-screen">
+  <div class="login-brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3c-2.2 0-3.5 1.4-4.6 1.4C6 4.4 5 3.6 3.8 4c-1.6.6-2 2.7-1.5 4.7.6 2.3 1.7 3.6 2 5.7.3 2.1.4 5.6 2.2 5.6 1.6 0 1.5-3.2 1.8-4.9.2-1 .5-1.7 1.2-1.7.7 0 1 .7 1.2 1.7.3 1.7.2 4.9 1.8 4.9 1.8 0 1.9-3.5 2.2-5.6.3-2.1 1.4-3.4 2-5.7.5-2 .1-4.1-1.5-4.7-1.2-.4-2.2.4-3.6.4C15.5 4.4 14.2 3 12 3Z"/></svg>
+      <span>Wellstone Dental</span>
+    </div>
+    <div>
+      <h1>Private dental care, organized around every patient's smile.</h1>
+      <p class="tag">One system for the front desk, the chair-side team, and the people they treat &mdash; scheduling, records, prescriptions and billing, kept in sync.</p>
+    </div>
+    <div class="brand-stats">
+      <div><b>4</b><span>Role-based workspaces</span></div>
+      <div><b>1</b><span>Secure local database</span></div>
+      <div><b>0</b><span>Setup steps before you sign up</span></div>
+    </div>
+  </div>
+
+  <div class="login-form-wrap">
+    <div class="login-form-box">
+
+      <!-- ===== SIGN IN ===== -->
+      <div id="login-view">
+        <h2>Sign in to your workspace</h2>
+        <p>Select your role and enter your credentials to continue.</p>
+
+        <div class="role-tabs" id="role-tabs">
+          <button class="role-tab active" data-role="Administrator">Admin</button>
+          <button class="role-tab" data-role="Dentist">Dentist</button>
+          <button class="role-tab" data-role="Clinic Staff">Staff</button>
+          <button class="role-tab" data-role="Patient">Patient</button>
+        </div>
+
+        <div class="login-error" id="login-error">Incorrect username or password. Please try again.</div>
+
+        <form id="login-form" novalidate>
+          <div class="field" id="field-username">
+            <label>Username <span class="req">*</span></label>
+            <input type="text" id="login-username" autocomplete="username" placeholder="Enter your username">
+            <div class="field-error">Username is required.</div>
+          </div>
+          <div class="field" id="field-password">
+            <label>Password <span class="req">*</span></label>
+            <input type="password" id="login-password" autocomplete="current-password" placeholder="Enter your password">
+            <div class="field-error">Password is required.</div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+        </form>
+
+        <p class="auth-switch">New to Wellstone Dental? <a href="#" id="show-signup-link">Create an account</a></p>
+      </div>
+
+      <!-- ===== SIGN UP ===== -->
+      <div id="signup-view" class="hidden">
+        <h2>Create your account</h2>
+        <p>Register as an Administrator, Dentist, Clinic Staff member, or Patient.</p>
+
+        <div class="login-error" id="signup-error">Please fix the highlighted fields and try again.</div>
+
+        <form id="signup-form" novalidate>
+          <div id="signup-fields"></div>
+          <button type="submit" class="btn btn-primary btn-block">Create account</button>
+        </form>
+
+        <p class="auth-switch">Already have an account? <a href="#" id="show-login-link">Sign in</a></p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app-shell" class="hidden">
+  <button class="sidebar-overlay" id="sidebar-overlay" aria-label="Close navigation"></button>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3c-2.2 0-3.5 1.4-4.6 1.4C6 4.4 5 3.6 3.8 4c-1.6.6-2 2.7-1.5 4.7.6 2.3 1.7 3.6 2 5.7.3 2.1.4 5.6 2.2 5.6 1.6 0 1.5-3.2 1.8-4.9.2-1 .5-1.7 1.2-1.7.7 0 1 .7 1.2 1.7.3 1.7.2 4.9 1.8 4.9 1.8 0 1.9-3.5 2.2-5.6.3-2.1 1.4-3.4 2-5.7.5-2 .1-4.1-1.5-4.7-1.2-.4-2.2.4-3.6.4C15.5 4.4 14.2 3 12 3Z"/></svg>
+      <span>Wellstone Dental</span>
+    </div>
+    <div class="sidebar-role" id="sidebar-role-label">WORKSPACE</div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar" id="sidebar-avatar">A</div>
+        <div>
+          <div class="name" id="sidebar-name">&nbsp;</div>
+          <div class="role" id="sidebar-role-sub">&nbsp;</div>
+        </div>
+      </div>
+      <button class="logout-btn" id="logout-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Log out
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-col">
+    <header class="topbar">
+      <div class="topbar-heading">
+        <button class="topbar-icon" id="sidebar-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" title="Toggle navigation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </button>
+        <div>
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-sub" id="topbar-sub">&nbsp;</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <label class="global-search" for="global-search-input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg>
+          <input id="global-search-input" type="search" placeholder="Search patients and appointments" autocomplete="off" aria-label="Search patients and appointments">
+          <kbd>Ctrl K</kbd>
+          <div class="search-results hidden" id="global-search-results" role="listbox" aria-label="Search results"></div>
+        </label>
+        <div class="notification-wrap">
+          <button class="topbar-icon" id="notification-toggle" type="button" aria-label="Notifications" aria-expanded="false" title="Notifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+            <span class="notification-count hidden" id="notification-count"></span>
+          </button>
+          <div class="notification-panel hidden" id="notification-panel" role="dialog" aria-label="Notifications"></div>
+        </div>
+        <button class="topbar-icon theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch theme">
+          <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+        </button>
+        <div class="topbar-date" id="topbar-date"></div>
+      </div>
+    </header>
+    <main class="view-content" id="view-content"></main>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<!--
+  Scripts: plain (non-module) files loaded in dependency order.
+  They share one global scope, so each file below can use anything
+  declared in the files above it (e.g. patients.js uses helpers from
+  utils.js and data.js).
+-->
+<script src="/Js/Icons.js"></script>
+<script src="/Js/Data.js"></script>
+<script src="/Js/api.js"></script>
+<script src="/Js/db.js"></script>
+<script src="/Js/services.js"></script>
+<script src="/Js/shell.js"></script>
+<script src="/Js/Utils.js"></script>
+<script src="/Js/Form-helpers.js"></script>
+<script src="/Js/auth.js"></script>
+<script src="/Js/signup.js"></script>
+<script src="/Js/Dashboard.js"></script>
+<script src="/Js/patients.js"></script>
+<script src="/Js/appointments.js"></script>
+<script src="/Js/records.js"></script>
+<script src="/Js/prescriptions.js"></script>
+<script src="/Js/transactions.js"></script>
+<script src="/Js/profile.js"></script>
+<script src="/Js/Main.js"></script>
+</body>
+</html>

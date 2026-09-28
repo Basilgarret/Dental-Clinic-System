@@ -30,10 +30,15 @@ function renderPatients(){
   root.querySelectorAll('[data-edit-patient]').forEach(el=> el.addEventListener('click', ()=> openPatientForm('edit', el.dataset.editPatient)));
   root.querySelectorAll('[data-delete-patient]').forEach(el=> el.addEventListener('click', ()=> {
     const p = findPatient(el.dataset.deletePatient);
-    openConfirm(`This will permanently remove ${p.name}'s chart, along with related history references. This cannot be undone.`, 'Delete this patient record?', ()=>{
-      state.patients = state.patients.filter(x=>x.id!==p.id);
-      showToast('Patient record deleted.', 'success');
-      renderPatients();
+    openConfirm(`This will permanently remove ${p.name}'s chart, along with related history references. This cannot be undone.`, 'Delete this patient record?', async ()=>{
+      try{
+        await apiDelete('/patients/' + p.id);
+        state.patients = state.patients.filter(x=>x.id!==p.id);
+        showToast('Patient record deleted.', 'success');
+        renderPatients();
+      }catch(err){
+        showToast(err.message, 'error');
+      }
     });
   }));
 }
@@ -96,50 +101,84 @@ function openPatientForm(mode, id){
     </form>`;
   openModal(html);
   bindModalClose();
-  document.getElementById('patient-form').addEventListener('submit', (e)=>{
+  document.getElementById('patient-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const { valid, values } = validateFields(patientFields);
     if(!valid) return;
-    if(editing){
-      Object.assign(editing, values);
-      showToast('Patient details updated successfully.', 'success');
-    } else {
-      const newP = Object.assign({ id: genId('P'), registered: todayISO() }, values);
-      state.patients.push(newP);
-      showToast('Patient registered successfully.', 'success');
+    const submitBtn = e.target.querySelector('button[type=submit]');
+    const originalLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving\u2026';
+    try{
+      if(editing){
+        const updated = await apiPut('/patients/' + editing.id, values);
+        Object.assign(editing, updated);
+        showToast('Patient details updated successfully.', 'success');
+      } else {
+        const newP = await apiPost('/patients', values);
+        state.patients.push(newP);
+        showToast('Patient registered successfully.', 'success');
+      }
+      closeModal();
+      renderPatients();
+    }catch(err){
+      showToast(err.message, 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
     }
-    closeModal();
-    renderPatients();
   });
 }
 
 function openPatientDetail(id){
   const p = findPatient(id);
   const role = state.currentUser.role;
-  const apptCount = state.appointments.filter(a=>a.patientId===id).length;
-  const recCount = state.dentalRecords.filter(a=>a.patientId===id).length;
+  const canViewBilling = role==='Administrator' || role==='Clinic Staff' || role==='Patient';
   const html = `
-    <div class="modal-header"><h3>${escapeHtml(p.name)}</h3><button class="modal-close" data-close-modal>${ICONS.close}</button></div>
-    <div class="modal-body">
-      <div class="detail-grid">
-        <div class="detail-item"><div class="label">Patient ID</div><div class="value">${p.id}</div></div>
-        <div class="detail-item"><div class="label">Gender</div><div class="value">${escapeHtml(p.gender)}</div></div>
-        <div class="detail-item"><div class="label">Date of Birth</div><div class="value">${formatDate(p.dob)}</div></div>
-        <div class="detail-item"><div class="label">Assigned Dentist</div><div class="value">${escapeHtml(dentistName(p.dentistId))}</div></div>
-        <div class="detail-item"><div class="label">Phone</div><div class="value">${escapeHtml(p.phone)}</div></div>
-        <div class="detail-item"><div class="label">Email</div><div class="value">${escapeHtml(p.email)}</div></div>
-        <div class="detail-item" style="grid-column:1/-1;"><div class="label">Address</div><div class="value">${escapeHtml(p.address||'\u2014')}</div></div>
-        <div class="detail-item" style="grid-column:1/-1;"><div class="label">Allergies / Medical Notes</div><div class="value">${escapeHtml(p.allergies||'None recorded')}</div></div>
-      </div>
-      <div class="divider"></div>
-      <div class="detail-grid">
-        <div class="detail-item"><div class="label">Appointments on file</div><div class="value">${apptCount}</div></div>
-        <div class="detail-item"><div class="label">Dental records on file</div><div class="value">${recCount}</div></div>
-      </div>
+    <div class="modal-header patient-profile-header"><div><span class="section-eyebrow">PATIENT CHART · ${escapeHtml(p.id)}</span><h3>${escapeHtml(p.name)}</h3><span class="patient-contact-line">${escapeHtml(p.phone)} · ${escapeHtml(p.email)}</span></div><button class="modal-close" data-close-modal aria-label="Close patient profile">${ICONS.close}</button></div>
+    <div class="patient-profile-tabs" role="tablist" aria-label="Patient chart sections">
+      <button type="button" role="tab" aria-selected="true" data-profile-tab="overview">Overview</button>
+      <button type="button" role="tab" aria-selected="false" data-profile-tab="history">Dental history</button>
+      <button type="button" role="tab" aria-selected="false" data-profile-tab="appointments">Appointments</button>
+      ${canViewBilling ? '<button type="button" role="tab" aria-selected="false" data-profile-tab="billing">Billing</button>' : ''}
     </div>
+    <div class="modal-body patient-profile-body" id="patient-profile-content" role="tabpanel"></div>
     <div class="modal-footer">
       <button type="button" class="btn btn-outline" data-close-modal>Close</button>
     </div>`;
   openModal(html);
   bindModalClose();
+  renderPatientProfileTab(id, 'overview');
+  document.querySelectorAll('[data-profile-tab]').forEach(tab=>tab.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-profile-tab]').forEach(item=>item.setAttribute('aria-selected',String(item===tab)));
+    renderPatientProfileTab(id, tab.dataset.profileTab);
+  }));
+}
+
+function renderPatientProfileTab(id, tab){
+  const p = findPatient(id);
+  const root = document.getElementById('patient-profile-content');
+  const appointments = state.appointments.filter(item=>item.patientId===id).sort((a,b)=>b.date.localeCompare(a.date));
+  const records = state.dentalRecords.filter(item=>item.patientId===id).sort((a,b)=>b.date.localeCompare(a.date));
+  const transactions = state.transactions.filter(item=>item.patientId===id).sort((a,b)=>b.date.localeCompare(a.date));
+  const latestVisit = records[0] || appointments.find(item=>item.status==='Completed');
+
+  if(tab==='overview'){
+    const nextAppointment = appointments.find(item=>item.date>=todayISO() && item.status!=='Cancelled' && item.status!=='Completed');
+    root.innerHTML = `
+      <div class="profile-stat-row"><div><span>Last visit</span><strong>${latestVisit ? formatDate(latestVisit.date) : 'No visits recorded'}</strong></div><div><span>Upcoming visit</span><strong>${nextAppointment ? formatDate(nextAppointment.date) : 'None scheduled'}</strong></div><div><span>Assigned dentist</span><strong>${escapeHtml(dentistName(p.dentistId))}</strong></div></div>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="label">Gender</div><div class="value">${escapeHtml(p.gender)}</div></div>
+        <div class="detail-item"><div class="label">Date of birth</div><div class="value">${formatDate(p.dob)}</div></div>
+        <div class="detail-item"><div class="label">Phone</div><div class="value">${escapeHtml(p.phone)}</div></div>
+        <div class="detail-item"><div class="label">Email</div><div class="value">${escapeHtml(p.email)}</div></div>
+        <div class="detail-item profile-full-row"><div class="label">Address</div><div class="value">${escapeHtml(p.address||'\u2014')}</div></div>
+        <div class="detail-item profile-full-row"><div class="label">Allergies / medical notes</div><div class="value">${escapeHtml(p.allergies||'None recorded')}</div></div>
+      </div>`;
+  }else if(tab==='history'){
+    root.innerHTML = records.length ? `<div class="profile-timeline">${records.map(record=>`<article class="profile-timeline-item"><time>${formatDate(record.date)}</time><div class="profile-timeline-mark">${ICONS.records}</div><div><strong>${escapeHtml(record.procedure)}</strong><span>${escapeHtml(record.diagnosis||'No diagnosis recorded')}</span><small>${escapeHtml(dentistName(record.dentistId))} · ${escapeHtml(record.tooth||'No tooth specified')}</small>${record.notes?`<p>${escapeHtml(record.notes)}</p>`:''}</div></article>`).join('')}</div>` : emptyState('No dental history yet', 'Clinical records will appear here after a visit is documented.');
+  }else if(tab==='appointments'){
+    root.innerHTML = appointments.length ? `<div class="profile-appointment-list">${appointments.map(item=>`<div class="profile-list-row"><div><strong>${escapeHtml(item.type)}</strong><span>${formatDate(item.date)} · ${escapeHtml(item.time)} · ${escapeHtml(dentistName(item.dentistId))}</span></div>${statusBadge(item.status)}</div>`).join('')}</div>` : emptyState('No appointments yet', 'Scheduled and completed visits will appear here.');
+  }else{
+    root.innerHTML = transactions.length ? `<div class="profile-appointment-list">${transactions.map(item=>`<div class="profile-list-row"><div><strong>${escapeHtml(item.description)}</strong><span>${formatDate(item.date)} · ${escapeHtml(item.method)}</span></div><div class="profile-billing-total"><strong>${formatMoney(item.amount)}</strong>${statusBadge(item.status)}</div></div>`).join('')}</div>` : emptyState('No billing records yet', 'Transactions for this patient will appear here.');
+  }
 }

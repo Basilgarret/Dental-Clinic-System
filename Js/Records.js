@@ -25,10 +25,15 @@ function renderRecords(){
   root.querySelectorAll('[data-view-record]').forEach(el=> el.addEventListener('click', ()=> openRecordDetail(el.dataset.viewRecord)));
   root.querySelectorAll('[data-edit-record]').forEach(el=> el.addEventListener('click', ()=> openRecordForm('edit', el.dataset.editRecord)));
   root.querySelectorAll('[data-delete-record]').forEach(el=> el.addEventListener('click', ()=>{
-    openConfirm('This will permanently remove this entry from the patient\'s treatment history.', 'Delete this dental record?', ()=>{
-      state.dentalRecords = state.dentalRecords.filter(r=>r.id!==el.dataset.deleteRecord);
-      showToast('Dental record deleted.', 'success');
-      renderRecords();
+    openConfirm('This will permanently remove this entry from the patient\'s treatment history.', 'Delete this dental record?', async ()=>{
+      try{
+        await apiDelete('/records/' + el.dataset.deleteRecord);
+        state.dentalRecords = state.dentalRecords.filter(r=>r.id!==el.dataset.deleteRecord);
+        showToast('Dental record deleted.', 'success');
+        renderRecords();
+      }catch(err){
+        showToast(err.message, 'error');
+      }
     });
   }));
 }
@@ -38,7 +43,7 @@ function buildRecordTable(list, role, canEdit){
     ${role!=='Patient' ? '<th>Patient</th>' : ''}<th>Date</th><th>Procedure</th><th>Tooth</th><th>Dentist</th><th></th>
   </tr></thead><tbody>
   ${list.map(r=>`
-    <tr>
+    <tr data-record-id="${r.id}">
       ${role!=='Patient' ? `<td><div class="cell-name">${escapeHtml(patientName(r.patientId))}</div></td>` : ''}
       <td>${formatDate(r.date)}</td>
       <td>${escapeHtml(r.procedure)}</td>
@@ -55,6 +60,7 @@ function buildRecordTable(list, role, canEdit){
 
 const recordFields = [
   {key:'patientId', label:'Patient', type:'select', required:true, options:()=>state.patients.map(p=>({value:p.id,label:p.name}))},
+  {key:'dentistId', label:'Dentist', type:'select', required:true, options:()=>dentists.map(d=>({value:d.id,label:d.name}))},
   {key:'date', label:'Date of Visit', type:'date', required:true, notFuture:true},
   {key:'tooth', label:'Tooth / Area', type:'text', required:true, placeholder:'e.g. #14, Full mouth'},
   {key:'procedure', label:'Procedure', type:'text', required:true, placeholder:'e.g. Composite Filling'},
@@ -64,19 +70,21 @@ const recordFields = [
 
 function openRecordForm(mode, id){
   const editing = mode==='edit' ? state.dentalRecords.find(r=>r.id===id) : null;
-  const vals = editing || { patientId:'', date:'', tooth:'', procedure:'', diagnosis:'', notes:'' };
+  const currentUserIsDentist = state.currentUser.role === 'Dentist';
+  const vals = editing || { patientId:'', dentistId: currentUserIsDentist ? state.currentUser.id : '', date:'', tooth:'', procedure:'', diagnosis:'', notes:'' };
   const html = `
     <div class="modal-header"><h3>${editing?'Edit Dental Record':'Add Dental Record'}</h3><button class="modal-close" data-close-modal>${ICONS.close}</button></div>
     <form id="record-form">
       <div class="modal-body">
         ${fieldHtml(recordFields[0], vals.patientId)}
+        ${currentUserIsDentist ? '' : fieldHtml(recordFields[1], vals.dentistId)}
         <div class="form-row">
-          ${fieldHtml(recordFields[1], vals.date)}
-          ${fieldHtml(recordFields[2], vals.tooth)}
+          ${fieldHtml(recordFields[2], vals.date)}
+          ${fieldHtml(recordFields[3], vals.tooth)}
         </div>
-        ${fieldHtml(recordFields[3], vals.procedure)}
-        ${fieldHtml(recordFields[4], vals.diagnosis)}
-        ${fieldHtml(recordFields[5], vals.notes)}
+        ${fieldHtml(recordFields[4], vals.procedure)}
+        ${fieldHtml(recordFields[5], vals.diagnosis)}
+        ${fieldHtml(recordFields[6], vals.notes)}
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" data-close-modal>Cancel</button>
@@ -85,20 +93,35 @@ function openRecordForm(mode, id){
     </form>`;
   openModal(html);
   bindModalClose();
-  document.getElementById('record-form').addEventListener('submit', (e)=>{
+  document.getElementById('record-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const { valid, values } = validateFields(recordFields);
+    const activeFields = currentUserIsDentist ? recordFields.filter(f=>f.key!=='dentistId') : recordFields;
+    const { valid, values } = validateFields(activeFields);
     if(!valid) return;
-    if(editing){
-      Object.assign(editing, values);
-      showToast('Dental record updated.', 'success');
-    } else {
-      const dentistId = state.currentUser.role==='Dentist' ? state.currentUser.id : (dentists[0].id);
-      state.dentalRecords.push(Object.assign({ id: genId('R'), dentistId }, values));
-      showToast('Dental record saved.', 'success');
+    if(currentUserIsDentist) values.dentistId = state.currentUser.id;
+
+    const submitBtn = e.target.querySelector('button[type=submit]');
+    const originalLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving\u2026';
+
+    try{
+      if(editing){
+        const updated = await apiPut('/records/' + editing.id, values);
+        Object.assign(editing, updated);
+        showToast('Dental record updated.', 'success');
+      } else {
+        const newRecord = await apiPost('/records', values);
+        state.dentalRecords.push(newRecord);
+        showToast('Dental record saved.', 'success');
+      }
+      closeModal();
+      renderRecords();
+    }catch(err){
+      showToast(err.message, 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
     }
-    closeModal();
-    renderRecords();
   });
 }
 

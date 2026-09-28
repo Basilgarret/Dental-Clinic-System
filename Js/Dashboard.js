@@ -120,31 +120,53 @@ function renderDashboard(){
   }
 
   // Administrator
-  const pendingAmount = state.transactions.filter(t=>t.status!=='Paid').reduce((s,t)=>s+t.amount,0);
+  const todaysAppointments = state.appointments
+    .filter(a=>a.date===todayStr && a.status!=='Cancelled')
+    .sort((a,b)=>a.time.localeCompare(b.time));
+  const paidAmount = state.transactions.filter(t=>t.status==='Paid').reduce((s,t)=>s+Number(t.amount),0);
+  const pendingAmount = state.transactions.filter(t=>t.status!=='Paid').reduce((s,t)=>s+Number(t.amount),0);
   root.innerHTML = `
-    <div class="stat-grid">
-      <div class="stat-card accent"><div class="label">Total patients</div><div class="value">${state.patients.length}</div><div class="hint">Active charts on file</div></div>
-      <div class="stat-card"><div class="label">Today's appointments</div><div class="value">${state.appointments.filter(a=>a.date===todayStr && a.status!=='Cancelled').length}</div><div class="hint">Across both dentists</div></div>
-      <div class="stat-card"><div class="label">Outstanding balance</div><div class="value">${formatMoney(pendingAmount)}</div><div class="hint">Pending + overdue invoices</div></div>
-      <div class="stat-card"><div class="label">Active prescriptions</div><div class="value">${state.prescriptions.filter(r=>r.status==='Active').length}</div><div class="hint">Currently in progress</div></div>
+    <div class="dashboard-intro">
+      <div><span class="section-eyebrow">CLINIC OVERVIEW</span><h1>Good ${new Date().getHours()<12?'morning':new Date().getHours()<17?'afternoon':'evening'}, ${escapeHtml(state.currentUser.name.split(' ')[0])}</h1><p>Here is the latest for your clinic. Today is ${escapeHtml(new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'}))}.</p></div>
+      <button class="btn btn-primary" id="qa-newappt">${ICONS.cal_plus} Schedule appointment</button>
     </div>
-    <div class="dash-grid">
-      <div class="panel">
-        <div class="panel-header"><h3>Upcoming appointments</h3></div>
-        <div class="panel-body">${apptTimeline(state.appointments.filter(a=>a.date>=todayStr && a.status!=='Cancelled').sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6))}</div>
-      </div>
-      <div class="panel">
-        <div class="panel-header"><h3>Quick actions</h3></div>
-        <div class="panel-body pad quick-actions">
-          <button class="btn btn-primary" id="qa-newpatient">${ICONS.plus} Register new patient</button>
-          <button class="btn btn-outline" id="qa-newappt">${ICONS.cal_plus} Schedule appointment</button>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-top"><div class="label">Total patients</div><span class="metric-icon teal">${ICONS.patients}</span></div><div class="value">${state.patients.length}</div><div class="hint">Registered patient charts</div></div>
+      <div class="stat-card"><div class="stat-top"><div class="label">Today's appointments</div><span class="metric-icon blue">${ICONS.appointments}</span></div><div class="value">${todaysAppointments.length}</div><div class="hint">${todaysAppointments.filter(a=>a.status==='Completed').length} completed so far</div></div>
+      <div class="stat-card"><div class="stat-top"><div class="label">Revenue collected</div><span class="metric-icon green">${ICONS.cash}</span></div><div class="value">${formatMoney(paidAmount)}</div><div class="hint">Payments marked as paid</div></div>
+      <div class="stat-card"><div class="stat-top"><div class="label">Outstanding balance</div><span class="metric-icon coral">${ICONS.alert}</span></div><div class="value">${formatMoney(pendingAmount)}</div><div class="hint">Pending and overdue</div></div>
+    </div>
+    <div class="dashboard-layout">
+      <section class="panel schedule-panel">
+        <div class="panel-header"><div><h3>Today's schedule</h3><p class="panel-subtitle">${todaysAppointments.length ? `${todaysAppointments.length} visits scheduled` : 'No visits scheduled for today'}</p></div><button class="btn btn-ghost btn-sm" id="qa-view-appts">View appointments</button></div>
+        <div class="panel-body">${todaysAppointments.length ? apptTimeline(todaysAppointments) : `<div class="schedule-empty">${ICONS.appointments}<div><strong>Your schedule is clear</strong><span>New appointments will appear here.</span></div><button class="btn btn-outline btn-sm" id="qa-empty-schedule">Schedule a visit</button></div>`}</div>
+      </section>
+      <div class="dashboard-side">
+        <section class="panel"><div class="panel-header"><h3>Quick actions</h3></div><div class="panel-body pad quick-actions">
+          <button class="btn btn-outline" id="qa-newpatient">${ICONS.plus} Register patient</button>
+          <button class="btn btn-outline" id="qa-record">${ICONS.records} Add dental record</button>
           <button class="btn btn-outline" id="qa-invoice">${ICONS.cash} Record a payment</button>
-        </div>
+        </div></section>
+        <section class="panel activity-panel"><div class="panel-header"><h3>Recent activity</h3></div><div class="panel-body">${renderDashboardActivity()}</div></section>
       </div>
     </div>`;
   document.getElementById('qa-newpatient').addEventListener('click', ()=> openPatientForm('add'));
   document.getElementById('qa-newappt').addEventListener('click', ()=> openAppointmentForm('add'));
+  document.getElementById('qa-view-appts').addEventListener('click', ()=> navigateTo('appointments'));
+  document.getElementById('qa-record').addEventListener('click', ()=> openRecordForm('add'));
+  document.getElementById('qa-empty-schedule')?.addEventListener('click', ()=> openAppointmentForm('add'));
   document.getElementById('qa-invoice').addEventListener('click', ()=> openTransactionForm('add'));
+}
+
+function renderDashboardActivity(){
+  const activity = [
+    ...state.patients.map(p=>({date:p.registered, icon:ICONS.patients, title:'Patient registered', detail:p.name})),
+    ...state.appointments.map(a=>({date:a.date, icon:ICONS.appointments, title:'Appointment scheduled', detail:`${patientName(a.patientId)} · ${a.type}`})),
+    ...state.dentalRecords.map(r=>({date:r.date, icon:ICONS.records, title:'Dental record updated', detail:`${patientName(r.patientId)} · ${r.procedure}`})),
+    ...state.transactions.filter(t=>t.status==='Paid').map(t=>({date:t.date, icon:ICONS.cash, title:'Payment received', detail:`${patientName(t.patientId)} · ${formatMoney(t.amount)}`})),
+  ].filter(item=>item.date).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  if(!activity.length) return emptyState('No recent activity', 'New registrations and clinic updates will appear here.');
+  return `<div class="activity-list">${activity.map(item=>`<div class="activity-item"><span class="activity-icon">${item.icon}</span><div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.detail)}</span></div><time>${formatDate(item.date)}</time></div>`).join('')}</div>`;
 }
 
 function apptTimeline(list, showPatientOnly){
