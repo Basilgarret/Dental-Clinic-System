@@ -135,7 +135,7 @@ function initSignup(){
       const payload = { name: base.name, username: base.username, password: base.password, role: base.role, extra };
       const result = await apiPost('/auth/signup', payload);
 
-      showToast('Account created \u2014 welcome to Wellstone Dental!', 'success');
+      showToast('Account created \u2014 welcome to Clearview Family Dental!', 'success');
       document.getElementById('signup-form').reset();
       document.getElementById('signup-fields').innerHTML = '';
       await logIn(result.user);

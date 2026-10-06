@@ -164,7 +164,7 @@ async function logOut(){
   showToast('You have been logged out.', 'info');
 }
 document.getElementById('logout-btn').addEventListener('click', ()=>{
-  openConfirm('You will need to sign in again to access the workspace.', 'Log out of Wellstone Dental?', logOut, 'neutral');
+  openConfirm('You will need to sign in again to access the workspace.', 'Log out of Clearview Family Dental?', logOut, 'neutral');
 });
 
 function renderSidebarNav(){
@@ -182,7 +182,7 @@ function renderSidebarNav(){
 }
 
 const VIEW_TITLES = {
-  dashboard: ['Dashboard', 'A snapshot of today at Wellstone Dental.'],
+  dashboard: ['Dashboard', 'A snapshot of today at Clearview Family Dental.'],
   patients: ['Patients', 'View and manage patient charts.'],
   appointments: ['Appointments', 'Book, confirm and track visits.'],
   dentists: ['Dentists', 'The clinicians and specialties at your clinic.'],

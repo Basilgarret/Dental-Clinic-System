@@ -8,6 +8,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "reset-admin-password": "node reset-admin-password.js",
+    "create-admin-account": "node create-admin-account.js",
     "replace-admin-account": "node replace-admin-account.js"
   },
   "dependencies": {

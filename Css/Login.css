@@ -10,7 +10,13 @@
 }
 .login-brand{
   flex: 1.1;
-  background: var(--sidebar);
+  background-color: var(--sidebar);
+  background-image:
+    linear-gradient(135deg, rgba(16,35,36,.78), rgba(24,61,62,.58)),
+    url('https://moulanahospital.com/wp-content/uploads/2021/05/Endodontis-pedodontis-orthodontis-dental-surgery.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
   color: #F2F6FC;
   padding: 64px 60px;
   display:flex;

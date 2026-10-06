@@ -24,7 +24,7 @@
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .sidebar-brand svg{ width:26px; height:26px; color: var(--accent); flex-shrink:0; }
-.sidebar-brand span{ font-family: var(--font-serif); font-size:17px; color:#fff; letter-spacing:0.01em; }
+.sidebar-brand span{ font-family: var(--font-serif); font-size:15px; line-height:1.1; color:#fff; letter-spacing:0.01em; }
 .sidebar-role{
   margin: 16px 22px 6px 22px;
   font-size: 10.5px;
