@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Backend and Front-End Integration</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-2: #111827;
+      --card: #1f2937;
+      --primary: #60a5fa;
+      --secondary: #a78bfa;
+      --text: #e5e7eb;
+      --muted: #cbd5e1;
+      --accent: #34d399;
+      --warning: #fbbf24;
+      --shadow: rgba(15, 23, 42, 0.45);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, var(--bg), var(--bg-2));
+      color: var(--text);
+    }
+
+    .slides {
+      width: min(1200px, 90vw);
+      margin: 40px auto;
+      display: grid;
+      gap: 24px;
+    }
+
+    .slide {
+      background: rgba(17, 24, 39, 0.86);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 20px;
+      box-shadow: 0 20px 45px var(--shadow);
+      padding: 42px 52px;
+      min-height: 520px;
+    }
+
+    h1, h2, h3 { margin-top: 0; }
+    h1 {
+      font-size: clamp(2.2rem, 3vw, 3.5rem);
+      margin-bottom: 16px;
+      line-height: 1.1;
+    }
+    h2 {
+      font-size: clamp(1.6rem, 2vw, 2.3rem);
+      margin-bottom: 18px;
+      color: var(--primary);
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
+      gap: 20px;
+      margin-top: 18px;
+    }
+
+    .card {
+      background: rgba(31, 41, 55, 0.8);
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      padding: 18px 20px;
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      color: var(--secondary);
+      font-size: 1.15rem;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .callout {
+      background: rgba(96, 165, 250, 0.12);
+      border-left: 4px solid var(--primary);
+      padding: 16px 18px;
+      border-radius: 12px;
+      color: var(--text);
+      margin-top: 20px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .code {
+      font-family: Consolas, Monaco, monospace;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 10px;
+      padding: 16px;
+      line-height: 1.6;
+      color: #dbeafe;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .highlight {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .label {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 760px) {
+      .slide { padding: 28px 24px; min-height: auto; }
+      .grid, .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="slides">
+    <section class="slide">
+      <div class="label">Presentation</div>
+      <h1>Backend and Front-End Integration</h1>
+      <div class="subtitle">Dental Clinic System architecture overview</div>
+      <div class="grid">
+        <div class="card">
+          <h3>Frontend</h3>
+          <ul>
+            <li>Browser-based dashboard</li>
+            <li>Login, signup, appointments, patients</li>
+            <li>Role-based UI workflows</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Backend</h3>
+          <ul>
+            <li>Express.js API server</li>
+            <li>Authentication and authorization</li>
+            <li>PostgreSQL data layer</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout">
+        The browser never talks directly to the database; it communicates through a backend API layer that validates requests and protects data.
+      </div>
+    </section>
+
+    <section class="slide">
+      <h2>System Architecture</h2>
+      <div class="two-col">
+        <ul>
+          <li><span class="highlight">Frontend:</span> HTML, CSS, JavaScript modules in the <strong>Js</strong> folder</li>
+          <li><span class="highlight">API server:</span> Express app in <strong>Js/server.js</strong></li>
+          <li><span class="highlight">Routes:</span> Business logic and endpoints in <strong>Js/routes/index.js</strong></li>
+          <li><span class="highlight">Database:</span> PostgreSQL connection via <strong>Js/database.js</strong></li>
+          <li><span class="highlight">Sessions:</span> Managed with <strong>express-session</strong> and PostgreSQL session storage</li>
+          <li><span class="highlight">Security:</span> CORS, rate limiting, password hashing, and role checks</li>
+        </ul>
+        <div class="code">Browser
+  ↓
+API Client (Js/api.js)
+  ↓
+Express API (Js/server.js)
+  ↓
+Routes + Middleware
+  ↓
+PostgreSQL Database</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <h2>Front-End Integration Pattern</h2>
+      <div class="code">const API_BASE = window.location.port === '5500'
+  ? `${window.location.protocol}//${window.location.hostname}:4000/api`
+  : `${window.location.origin}/api`;
+
+async function apiRequest(path, options) {
+  const res = await fetch(API_BASE + path, options);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}</div>
+      <ul style="margin-top: 18px;">
+        <li>The front end centralizes requests through <strong>Js/api.js</strong>.</li>
+        <li>Every CRUD action uses the same wrapper, which reduces duplication and ensures consistent error handling.</li>
+        <li>Modules such as <strong>Auth.js</strong>, <strong>appointments.js</strong>, and <strong>clinic.js</strong> call the backend instead of directly manipulating the database.</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Authentication and Session Flow</h2>
+      <div class="two-col">
+        <ul>
+          <li>User submits username and password.</li>
+          <li><strong>Auth.js</strong> sends <strong>POST /api/auth/login</strong>.</li>
+          <li>Backend validates input and checks the users table.</li>
+          <li>Server hashes and compares passwords with <strong>bcryptjs</strong>.</li>
+          <li>On success, a secure session is created and stored server-side.</li>
+          <li>Protected API requests rely on the user's session and role.</li>
+        </ul>
+        <div class="card">
+          <h3>Session features</h3>
+          <ul>
+            <li>HTTP-only cookies</li>
+            <li>SameSite protection</li>
+            <li>Role checks with middleware</li>
+            <li>Automatic logout support</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <h2>Example: Patient Appointment Request</h2>
+      <div class="two-col">
+        <ul>
+          <li>Front end collects appointment details in a modal form.</li>
+          <li>Client calls <strong>apiPost('/appointments', values)</strong>.</li>
+          <li>Backend validates the payload and inserts it into PostgreSQL.</li>
+          <li>Server returns the created appointment object.</li>
+          <li>UI updates the schedule without reloading the page.</li>
+        </ul>
+        <div class="code">await apiPost('/appointments', {
+  patientId,
+  dentistId,
+  date,
+  time,
+  status: 'Pending'
+});</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <h2>Backend Responsibilities</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Validation</h3>
+          <ul>
+            <li>Required form fields</li>
+            <li>Role-specific rules</li>
+            <li>Duplicate username checks</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Business Logic</h3>
+          <ul>
+            <li>Clinic registration flow</li>
+            <li>Appointment creation</li>
+            <li>Prescription and records updates</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Database Access</h3>
+          <ul>
+            <li>Prepared SQL queries</li>
+            <li>Transaction handling</li>
+            <li>Notification generation</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Security</h3>
+          <ul>
+            <li>CORS</li>
+            <li>Rate limiting</li>
+            <li>Session protection</li>
+            <li>Role authorization</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <h2>Key Files Review</h2>
+      <div class="code">Js/server.js          → Express app, middleware, static assets
+Js/api.js             → shared HTTP wrapper for the frontend
+Js/routes/index.js    → all API route logic and request handling
+Js/database.js        → PostgreSQL pool configuration
+Js/Auth.js            → login/auth UI behavior
+Js/index.html         → main client shell and dashboards
+Js/appointments.js    → appointment workflows and UI rendering</div>
+    </section>
+
+    <section class="slide">
+      <h2>Why the Integration Works Well</h2>
+      <ul>
+        <li><span class="highlight">Separation of concerns:</span> UI and business logic are separated.</li>
+        <li><span class="highlight">Consistency:</span> All requests pass through the same API client.</li>
+        <li><span class="highlight">Security:</span> Authentication and authorization live in the backend.</li>
+        <li><span class="highlight">Maintainability:</span> Routes and database logic are organized into clear modules.</li>
+        <li><span class="highlight">Scalability:</span> New data features can be added without rewriting the client structure.</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Conclusion</h2>
+      <div class="callout">
+        The Dental Clinic System demonstrates a strong frontend-backend integration model: the UI sends requests to a protected API, the backend enforces business rules and security, and the database provides persistent data storage. This architecture makes the application modular, secure, and easier to expand over time.
+      </div>
+      <ul style="margin-top: 18px;">
+        <li>Frontend: user experience and dynamic rendering</li>
+        <li>Backend: validation, permissions, logic, sessions</li>
+        <li>Database: persistent storage and integrity</li>
+        <li>Result: a clean and maintainable clinic management platform</li>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>
