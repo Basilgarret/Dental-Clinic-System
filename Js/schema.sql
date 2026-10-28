@@ -73,12 +73,51 @@ CREATE TABLE IF NOT EXISTS prescriptions (
 CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY DEFAULT ('T' || nextval('transactions_id_seq')::text),
   patient_id TEXT NOT NULL REFERENCES patients(id),
+  dentist_id TEXT REFERENCES dentists(id) ON DELETE SET NULL,
   date DATE NOT NULL,
   description TEXT NOT NULL,
   amount NUMERIC(12, 2) NOT NULL CHECK (amount >= 0),
   method TEXT NOT NULL CHECK (method IN ('Cash', 'Card', 'Insurance', 'Online')),
   status TEXT NOT NULL CHECK (status IN ('Paid', 'Pending', 'Overdue'))
 );
+
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS dentist_id TEXT;
+UPDATE transactions t
+SET dentist_id = p.dentist_id
+FROM patients p
+WHERE p.id = t.patient_id AND t.dentist_id IS NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'transactions_dentist_id_fkey'
+      AND conrelid = 'transactions'::regclass
+  ) THEN
+    ALTER TABLE transactions
+      ADD CONSTRAINT transactions_dentist_id_fkey
+      FOREIGN KEY (dentist_id) REFERENCES dentists(id) ON DELETE SET NULL;
+  END IF;
+END
+$$;
+
+CREATE INDEX IF NOT EXISTS transactions_dentist_id_idx ON transactions(dentist_id);
+
+CREATE OR REPLACE FUNCTION set_transaction_dentist_id()
+RETURNS TRIGGER AS $$
+BEGIN
+  SELECT p.dentist_id INTO NEW.dentist_id
+  FROM patients p
+  WHERE p.id = NEW.patient_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS transactions_set_dentist_id ON transactions;
+CREATE TRIGGER transactions_set_dentist_id
+BEFORE INSERT OR UPDATE OF patient_id ON transactions
+FOR EACH ROW
+EXECUTE FUNCTION set_transaction_dentist_id();
 
 CREATE TABLE IF NOT EXISTS services (
   id BIGSERIAL PRIMARY KEY,
@@ -147,6 +186,24 @@ ALTER TABLE dentists ADD COLUMN IF NOT EXISTS user_id TEXT UNIQUE REFERENCES use
 ALTER TABLE dentists ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT '';
 ALTER TABLE dentists ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT '';
 ALTER TABLE dentists ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'dentists_clinic_id_fkey'
+      AND conrelid = 'dentists'::regclass
+  ) THEN
+    ALTER TABLE dentists
+      ADD CONSTRAINT dentists_clinic_id_fkey
+      FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE SET NULL;
+  END IF;
+END
+$$;
+
+CREATE INDEX IF NOT EXISTS dentists_clinic_id_idx ON dentists(clinic_id);
+
+ALTER TABLE clinics DROP COLUMN IF EXISTS dentist_id;
 
 ALTER TABLE services ADD COLUMN IF NOT EXISTS clinic_id BIGINT REFERENCES clinics(id) ON DELETE CASCADE;
 DROP INDEX IF EXISTS services_name_lower_idx;

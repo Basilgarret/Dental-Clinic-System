@@ -68,11 +68,12 @@ function renderTransactions(){
 
 function buildTxTable(list, role, canEdit){
   return `<table><thead><tr>
-    ${role!=='Patient' ? '<th>Patient</th>' : ''}<th>Date</th><th>Description</th><th>Amount</th><th>Method</th><th>Status</th><th></th>
+    ${role!=='Patient' ? '<th>Patient</th>' : ''}<th>Dentist ID</th><th>Date</th><th>Description</th><th>Amount</th><th>Method</th><th>Status</th><th></th>
   </tr></thead><tbody>
   ${list.map(t=>`
     <tr data-transaction-id="${t.id}">
       ${role!=='Patient' ? `<td><div class="cell-name">${escapeHtml(patientName(t.patientId))}</div></td>` : ''}
+      <td>${escapeHtml(t.dentistId || '—')}</td>
       <td>${formatDate(t.date)}</td>
       <td>${escapeHtml(t.description)}</td>
       <td>${formatMoney(t.amount)}</td>

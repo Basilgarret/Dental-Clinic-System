@@ -91,6 +91,7 @@ function transactionOut(row) {
   return {
     id: row.id,
     patientId: row.patient_id,
+    dentistId: row.dentist_id || '',
     date: dateOut(row.date),
     description: row.description,
     amount: row.amount,
