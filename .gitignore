@@ -2,3 +2,4 @@
 /Js/.env
 /Js/.dev-session-secret
 /Js/uploads/
+/Js/node_modules/

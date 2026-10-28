@@ -6,9 +6,11 @@ const crypto = require('crypto');
 const session = require('express-session');
 const PgSession = require('connect-pg-simple')(session);
 const { rateLimit } = require('express-rate-limit');
+const swaggerUi = require('swagger-ui-express');
 const { pool } = require('./database');
 
 const apiRoutes = require('./routes');
+const openApiSpec = require('./openapi.json');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
@@ -111,6 +113,9 @@ app.get('/api/health', async (req, res) => {
     res.status(500).json({ status: 'error', database: 'not connected', detail: err.message });
   }
 });
+
+app.get('/api/openapi.json', (req, res) => res.json(openApiSpec));
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
 const workspaceRoot = path.resolve(__dirname, '..');
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));

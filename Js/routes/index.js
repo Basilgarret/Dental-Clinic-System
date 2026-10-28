@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const { requireAuth, requireRole } = require('../auth-middleware');
 const { pool } = require('../database');
 const clinicWorkflowRoutes = require('./clinic-workflows');
+const { buildListQuery } = require('../list-query');
+const { validateResourcePayload } = require('../resource-validation');
 const {
   dentistOut,
   userOut,
@@ -53,6 +55,7 @@ function clinicOut(row) {
 
 function handle(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch((err) => {
+    if (err.status && err.status < 500) return res.status(err.status).json({ error: err.message });
     console.error('API request failed:', err);
     res.status(500).json({ error: 'The request could not be completed.' });
   });
@@ -218,6 +221,30 @@ function clinicPublicOut(row) {
   };
 }
 
+async function sendResourceList(req, res, { table, from, select, orderBy, alias = '', scope, map }) {
+  const list = buildListQuery(table, req.query, scope, alias);
+  const order = `${orderBy}, ${alias ? `${alias}.` : ''}id`;
+  if (!list.paginated) {
+    const result = await pool.query(`SELECT ${select} FROM ${from} ${list.where} ORDER BY ${order}`, list.params);
+    return res.json(result.rows.map(map));
+  }
+
+  const countResult = await pool.query(`SELECT count(*)::int AS total FROM ${from} ${list.where}`, list.params);
+  const total = countResult.rows[0].total;
+  const params = [...list.params, list.pageSize, list.offset];
+  const result = await pool.query(
+    `SELECT ${select} FROM ${from} ${list.where} ORDER BY ${order} LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+  return res.json({
+    items: result.rows.map(map),
+    total,
+    page: list.page,
+    pageSize: list.pageSize,
+    totalPages: Math.ceil(total / list.pageSize),
+  });
+}
+
 router.get('/maps/embed', (req, res) => {
   const query = String(req.query.query || '').trim().slice(0, 300);
   if (!query) return res.status(400).send('Map location is required.');
@@ -255,23 +282,27 @@ router.get('/clinics/:clinicId', handle(async (req, res, next) => {
 }));
 
 router.get('/dentists', handle(async (req, res) => {
-  const result = await pool.query(
-    `SELECT d.* FROM dentists d
-     LEFT JOIN clinics c ON c.id = d.clinic_id
-     WHERE d.active AND (d.clinic_id IS NULL OR c.status = 'Approved')
-     ORDER BY d.name`
-  );
-  res.json(result.rows.map((row) => ({ id: row.id, name: row.name, specialty: row.specialty })));
+  await sendResourceList(req, res, {
+    table: 'dentists',
+    from: 'dentists d LEFT JOIN clinics c ON c.id = d.clinic_id',
+    select: 'd.*',
+    orderBy: 'd.name',
+    alias: 'd',
+    scope: { sql: "d.active AND (d.clinic_id IS NULL OR c.status = 'Approved')", params: [] },
+    map: (row) => ({ id: row.id, name: row.name, specialty: row.specialty }),
+  });
 }));
 
 router.get('/services', handle(async (req, res) => {
-  const result = await pool.query(
-    `SELECT s.* FROM services s
-     LEFT JOIN clinics c ON c.id = s.clinic_id
-     WHERE s.active AND (s.clinic_id IS NULL OR c.status = 'Approved')
-     ORDER BY s.name`
-  );
-  res.json(result.rows.map(serviceOut));
+  await sendResourceList(req, res, {
+    table: 'services',
+    from: 'services s LEFT JOIN clinics c ON c.id = s.clinic_id',
+    select: 's.*',
+    orderBy: 's.name',
+    alias: 's',
+    scope: { sql: "s.active AND (s.clinic_id IS NULL OR c.status = 'Approved')", params: [] },
+    map: serviceOut,
+  });
 }));
 
 router.use(requireAuth);
@@ -335,13 +366,23 @@ const resourcePermissions = {
   services: { read: ['Administrator', 'Clinic Owner', 'Clinic Staff'], create: ['Administrator', 'Clinic Owner'], update: ['Administrator', 'Clinic Owner'], delete: ['Administrator', 'Clinic Owner'] },
 };
 
+function resourceParamValue(key, value) {
+  if (value === '' && ['dentistId', 'clinicId', 'serviceId'].includes(key)) return null;
+  return value;
+}
+
 function registerResource(route, { table, fields, map, orderBy }) {
   const permissions = resourcePermissions[table];
   router.get(route, requireRole(...permissions.read), handle(async (req, res) => {
     const scope = resourceScope(table, req.session.user);
-    const where = scope.sql ? `WHERE ${scope.sql}` : '';
-    const result = await pool.query(`SELECT * FROM ${table} ${where} ORDER BY ${orderBy}`, scope.params);
-    res.json(result.rows.map(map));
+    await sendResourceList(req, res, {
+      table,
+      from: table,
+      select: '*',
+      orderBy,
+      scope,
+      map,
+    });
   }));
 
   router.post(route, requireRole(...permissions.create), handle(async (req, res) => {
@@ -387,10 +428,12 @@ function registerResource(route, { table, fields, map, orderBy }) {
       if (!clinic.rowCount) return res.status(403).json({ error: 'Clinic profile was not found.' });
       body.clinicId = clinic.rows[0].id;
     }
+    const validationError = validateResourcePayload(table, body);
+    if (validationError) return res.status(400).json({ error: validationError });
     const values = Object.keys(fields).filter((key) => body[key] !== undefined);
     if (!values.length) return res.status(400).json({ error: 'No fields were provided.' });
     const columns = values.map((key) => fields[key]);
-    const params = values.map((key) => key === 'meds' ? JSON.stringify(body[key]) : body[key]);
+    const params = values.map((key) => key === 'meds' ? JSON.stringify(body[key]) : resourceParamValue(key, body[key]));
     const placeholders = params.map((value, index) => `$${index + 1}`);
     const result = await pool.query(
       `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING *`,
@@ -418,10 +461,15 @@ function registerResource(route, { table, fields, map, orderBy }) {
   }));
 
   router.put(`${route}/:id`, requireRole(...permissions.update), handle(async (req, res) => {
+    if (req.body && req.body.id !== undefined && String(req.body.id) !== String(req.params.id)) {
+      return res.status(400).json({ error: 'The resource ID cannot be changed.' });
+    }
+    const validationError = validateResourcePayload(table, req.body, true);
+    if (validationError) return res.status(400).json({ error: validationError });
     const values = Object.keys(fields).filter((key) => req.body && req.body[key] !== undefined);
     if (!values.length) return res.status(400).json({ error: 'No fields were provided.' });
     const assignments = values.map((key, index) => `${fields[key]} = $${index + 1}`);
-    const params = values.map((key) => key === 'meds' ? JSON.stringify(req.body[key]) : req.body[key]);
+    const params = values.map((key) => key === 'meds' ? JSON.stringify(req.body[key]) : resourceParamValue(key, req.body[key]));
     const idParameter = params.length + 1;
     if (table === 'appointments') {
       const existingScope = resourceScope(table, req.session.user, 2);
