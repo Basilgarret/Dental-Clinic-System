@@ -13,6 +13,8 @@ Google Maps
 
 Clinic location frames use the Google Maps Embed API when `GOOGLE_MAPS_API_KEY` is set in the root `.env` file. Enable the Maps Embed API and billing in Google Cloud, and restrict the browser key by HTTP referrer to the app's local/LAN address and production domain. Restart the server after changing `.env`. Without a key, the app falls back to a Google Maps embed URL and an Open in Google Maps link.
 
+The patient clinic directory also includes a Google Maps search for nearby dentists. It searches around the user's current Maps location when the location field is empty, or around the entered city/region. This opens Google Maps in a new tab; it does not require the Places API or share browser location with this app.
+
 API documentation and testing
 -----------------------------
 

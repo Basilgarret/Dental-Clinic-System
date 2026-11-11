@@ -4,22 +4,22 @@
 
 /* ============ TOKENS ============ */
 :root{
-  --bg: #F2F6F5;
+  --bg: #F4F8F7;
   --surface: #FFFFFF;
-  --panel-alt: #EAF1EF;
+  --panel-alt: #ECF3F1;
   --sidebar: #183D3E;
-  --sidebar-hover: #234E4D;
-  --sidebar-active: #2E6662;
-  --primary: #167976;
-  --primary-dark: #105F5D;
-  --primary-light: #3B9690;
+  --sidebar-hover: #21494A;
+  --sidebar-active: #2B6260;
+  --primary: #14736F;
+  --primary-dark: #105D5A;
+  --primary-light: #318C86;
   --accent: #C96E4B;
   --accent-soft: #F9ECE6;
   --text: #1D3536;
   --text-muted: #637877;
   --text-faint: #8A9B99;
-  --border: #DCE7E4;
-  --border-strong: #C7D7D2;
+  --border: #DFE9E6;
+  --border-strong: #C9D9D4;
   --success: #287354;
   --success-bg: #E5F2EA;
   --warning: #996314;
@@ -28,11 +28,11 @@
   --danger-bg: #F9EAE7;
   --info: #287B86;
   --info-bg: #E4F1F2;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --shadow-card: 0 2px 10px rgba(29, 53, 54, 0.045);
-  --shadow-popover: 0 16px 42px rgba(29, 53, 54, 0.16);
-  --shadow-modal: 0 20px 50px rgba(15, 30, 26, 0.25);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --shadow-card: 0 4px 16px rgba(29, 53, 54, 0.055);
+  --shadow-popover: 0 18px 48px rgba(29, 53, 54, 0.17);
+  --shadow-modal: 0 24px 64px rgba(15, 30, 26, 0.28);
   --font-serif: 'DM Serif Display', Georgia, serif;
   --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }

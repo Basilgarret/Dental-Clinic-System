@@ -1,13 +1,17 @@
 let clinicDirectoryFilters = { city: '', specialization: '', service: '' };
 
+function googleMapsSearchUrl(query){
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 function clinicMapHtml(clinic){
   const place = clinic.latitude != null && clinic.longitude != null
     ? `${Number(clinic.latitude)},${Number(clinic.longitude)}`
     : `${clinic.name}, ${clinic.address}, ${clinic.city}, ${clinic.region || ''}`;
   const query = encodeURIComponent(place);
   const mapUrl = `${API_BASE}/maps/embed?query=${query}`;
-  const largerMap = `https://www.google.com/maps/search/?api=1&query=${query}`;
-  return `<iframe class="clinic-map" title="Google Map for ${escapeHtml(clinic.name)}" loading="eager" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe><a class="map-link" href="${largerMap}" target="_blank" rel="noreferrer">Open in Google Maps</a>`;
+  const largerMap = googleMapsSearchUrl(place);
+  return `<iframe class="clinic-map" title="Google Map for ${escapeHtml(clinic.name)}" loading="eager" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe><a class="map-link" href="${escapeHtml(largerMap)}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`;
 }
 
 function renderClinicDirectory(){
@@ -21,12 +25,17 @@ function renderClinicDirectory(){
     const serviceMatch=!clinicDirectoryFilters.service || (clinic.services||[]).some(service=>service.name.toLowerCase()===clinicDirectoryFilters.service.toLowerCase());
     return cityMatch&&specialtyMatch&&serviceMatch;
   });
+  const mapsQuery=clinicDirectoryFilters.city.trim()
+    ? `dentists near ${clinicDirectoryFilters.city.trim()}`
+    : 'dentists near me';
+  const mapsSearchUrl=googleMapsSearchUrl(mapsQuery);
   root.innerHTML=`
     <div class="directory-heading"><div><span class="section-eyebrow">APPROVED PROVIDERS</span><h1>Find a clinic</h1><p>Compare approved clinics, clinicians, and available services.</p></div><span class="directory-count"><strong>${filtered.length}</strong><span>clinics</span></span></div>
     <section class="panel clinic-search-panel"><div class="panel-header clinic-filterbar">
       <label class="clinic-search-field"><span>City or region</span><input id="clinic-city-filter" type="search" placeholder="Search location" value="${escapeHtml(clinicDirectoryFilters.city)}"></label>
       <label class="clinic-search-field"><span>Specialization</span><select id="clinic-specialty-filter"><option value="">All specializations</option>${specializations.map(value=>`<option ${clinicDirectoryFilters.specialization===value?'selected':''}>${escapeHtml(value)}</option>`).join('')}</select></label>
       <label class="clinic-search-field"><span>Service</span><select id="clinic-service-filter"><option value="">All services</option>${services.map(value=>`<option ${clinicDirectoryFilters.service===value?'selected':''}>${escapeHtml(value)}</option>`).join('')}</select></label>
+      <a class="btn btn-outline clinic-maps-search" href="${escapeHtml(mapsSearchUrl)}" target="_blank" rel="noopener noreferrer">Find nearby dentists on Google Maps</a>
     </div></section>
     <div class="clinic-directory-grid">${filtered.length?filtered.map(clinic=>`<article class="clinic-directory-card"><div class="clinic-directory-title"><div><span class="section-eyebrow">VERIFIED CLINIC</span><h2>${escapeHtml(clinic.name)}</h2></div><span class="badge badge-success">Approved</span></div><p class="clinic-location">${escapeHtml(clinic.city)}${clinic.region?`, ${escapeHtml(clinic.region)}`:''}</p><p class="clinic-address">${escapeHtml(clinic.address)}</p><div class="clinic-specialty-list">${(clinic.specializations||[]).map(value=>`<span>${escapeHtml(value)}</span>`).join('')}</div><div class="clinic-card-services">${(clinic.services||[]).slice(0,3).map(service=>`<span>${escapeHtml(service.name)} · ${formatMoney(service.price)}</span>`).join('')||'<span>Contact clinic for services</span>'}</div><div class="clinic-card-actions"><button type="button" class="btn btn-outline" data-clinic-detail="${clinic.id}">Clinic details</button><button type="button" class="btn btn-primary" data-clinic-book="${clinic.id}">Book appointment</button></div></article>`).join(''):emptyState('No clinics match these filters','Try a different city, specialization, or service.')}</div>`;
 
