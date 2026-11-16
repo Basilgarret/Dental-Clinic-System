@@ -121,11 +121,35 @@
   padding: 10px 12px; border-radius: var(--radius-sm); font-size:13px; margin-bottom:16px; display:none;
 }
 .login-error.show{ display:block; }
+.auth-feedback{
+  display:none;
+  margin-bottom:16px;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  color:var(--text-muted);
+  font-size:13px;
+}
+.auth-feedback.show{ display:block; }
+.auth-feedback.success{
+  border-color:#A9D7C0;
+  background:#EFF9F3;
+  color:#246443;
+}
+.auth-feedback.warning{
+  border-color:#E4C78D;
+  background:#FFF8E8;
+  color:#73551C;
+}
+#verification-pending-view{ max-width:440px; margin:0 auto; }
+#verification-pending-view > p{ color:var(--text-muted); font-size:13px; line-height:1.6; margin-bottom:12px; }
+#verification-pending-email{ color:var(--text); overflow-wrap:anywhere; }
+#verification-pending-view > .auth-switch{ margin-top:14px; text-align:center; }
 
 #login-screen.signup-mode{
-  height:100dvh;
+  height:auto;
   min-height:100dvh;
-  overflow:hidden;
+  overflow-y:auto;
 }
 #login-screen.signup-mode .login-form-box{ padding:20px 24px; }
 #login-screen.signup-mode .login-form-box h2{ margin-bottom:4px; }

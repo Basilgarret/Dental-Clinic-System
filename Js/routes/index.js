@@ -1,7 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { requireAuth, requireRole } = require('../auth-middleware');
 const { pool } = require('../database');
+const { sendEmail } = require('../gmail');
 const clinicWorkflowRoutes = require('./clinic-workflows');
 const { buildListQuery } = require('../list-query');
 const { validateResourcePayload } = require('../resource-validation');
@@ -17,6 +19,7 @@ const {
 } = require('../mappers');
 
 const router = express.Router();
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function startSession(req, user) {
   return new Promise((resolve, reject) => {
@@ -61,16 +64,54 @@ function handle(handler) {
   });
 }
 
+function createAuthToken() {
+  const token = crypto.randomBytes(32).toString('hex');
+  return { token, tokenHash: crypto.createHash('sha256').update(token).digest('hex') };
+}
+
+async function storeAuthToken(client, userId, purpose, hoursValid) {
+  const { token, tokenHash } = createAuthToken();
+  await client.query('DELETE FROM auth_tokens WHERE user_id = $1 AND purpose = $2', [userId, purpose]);
+  await client.query(
+    `INSERT INTO auth_tokens (token_hash, user_id, purpose, expires_at)
+     VALUES ($1, $2, $3, CURRENT_TIMESTAMP + ($4 * INTERVAL '1 hour'))`,
+    [tokenHash, userId, purpose, hoursValid]
+  );
+  return token;
+}
+
+function getAppUrl() {
+  const appUrl = process.env.APP_BASE_URL;
+  if (!appUrl) throw new Error('APP_BASE_URL must be set to create account email links.');
+  const parsed = new URL(appUrl);
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('APP_BASE_URL must use HTTP or HTTPS.');
+  }
+  return parsed.toString().replace(/\/$/, '');
+}
+
+async function sendVerificationEmail(email, name, token) {
+  const link = new URL('/', getAppUrl());
+  link.searchParams.set('verifyEmail', token);
+  await sendEmail({
+    to: email,
+    subject: 'Verify your Clearview Family Dental account',
+    text: `Hello ${name},\n\nVerify your email address to activate your account:\n${link.toString()}\n\nThis link expires in 24 hours. If you did not create this account, you can ignore this email.`,
+  });
+}
+
 router.get('/auth/status', handle(async (req, res) => {
   const result = await pool.query('SELECT EXISTS(SELECT 1 FROM users) AS has_accounts');
   res.json({ hasAccounts: result.rows[0].has_accounts });
 }));
 
 router.post('/auth/signup', handle(async (req, res) => {
-  const { name, username, password, role, extra = {} } = req.body || {};
-  if (!name || !username || !password || !role) {
-    return res.status(400).json({ error: 'name, username, password and role are all required.' });
+  const { name, username, password, role, email, extra = {} } = req.body || {};
+  if (!name || !username || !password || !role || !email) {
+    return res.status(400).json({ error: 'name, username, email, password and role are all required.' });
   }
+  const normalizedEmail = String(email).trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(normalizedEmail)) return res.status(400).json({ error: 'Enter a valid email address.' });
   if (!['Dentist', 'Patient', 'Clinic Owner'].includes(role)) {
     return res.status(403).json({ error: 'This role can only be created by an administrator.' });
   }
@@ -80,11 +121,11 @@ router.post('/auth/signup', handle(async (req, res) => {
   if (role === 'Dentist' && !extra.specialty) {
     return res.status(400).json({ error: 'Specialty is required for a Dentist account.' });
   }
-  if (role === 'Patient' && ['dob', 'gender', 'phone', 'email'].some((key) => !extra[key])) {
-    return res.status(400).json({ error: 'Date of birth, gender, phone and email are required for a Patient account.' });
+  if (role === 'Patient' && ['dob', 'gender', 'phone'].some((key) => !extra[key])) {
+    return res.status(400).json({ error: 'Date of birth, gender and phone are required for a Patient account.' });
   }
-  if (role === 'Clinic Owner' && ['clinicName', 'phone', 'email', 'address', 'city'].some((key) => !extra[key])) {
-    return res.status(400).json({ error: 'Clinic name, phone, email, address and city are required.' });
+  if (role === 'Clinic Owner' && ['clinicName', 'phone', 'address', 'city'].some((key) => !extra[key])) {
+    return res.status(400).json({ error: 'Clinic name, phone, address and city are required.' });
   }
 
   const client = await pool.connect();
@@ -98,6 +139,12 @@ router.post('/auth/signup', handle(async (req, res) => {
       transactionOpen = false;
       return res.status(409).json({ error: 'That username is already taken.' });
     }
+    const existingEmail = await client.query('SELECT 1 FROM users WHERE lower(email) = $1', [normalizedEmail]);
+    if (existingEmail.rowCount) {
+      await client.query('ROLLBACK');
+      transactionOpen = false;
+      return res.status(409).json({ error: 'That email address is already associated with an account.' });
+    }
 
     let id;
     let dentist = null;
@@ -105,8 +152,8 @@ router.post('/auth/signup', handle(async (req, res) => {
     let clinic = null;
     if (role === 'Dentist') {
       const result = await client.query(
-        'INSERT INTO dentists (name, specialty) VALUES ($1, $2) RETURNING *',
-        [name, extra.specialty]
+        'INSERT INTO dentists (name, specialty, email) VALUES ($1, $2, $3) RETURNING *',
+        [name, extra.specialty, normalizedEmail]
       );
       dentist = result.rows[0];
       id = dentist.id;
@@ -114,7 +161,7 @@ router.post('/auth/signup', handle(async (req, res) => {
       const result = await client.query(
         `INSERT INTO patients (name, dob, gender, phone, email, dentist_id)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [name, extra.dob, extra.gender, extra.phone, extra.email, extra.dentistId || null]
+        [name, extra.dob, extra.gender, extra.phone, normalizedEmail, extra.dentistId || null]
       );
       patient = result.rows[0];
       id = patient.id;
@@ -127,8 +174,8 @@ router.post('/auth/signup', handle(async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const userResult = await client.query(
-      'INSERT INTO users (id, username, password_hash, role, name) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, username, passwordHash, role, name]
+      'INSERT INTO users (id, username, password_hash, role, name, email) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [id, username, passwordHash, role, name, normalizedEmail]
     );
     if (dentist) {
       const linked = await client.query('UPDATE dentists SET user_id = $1 WHERE id = $2 RETURNING *', [id, dentist.id]);
@@ -140,7 +187,7 @@ router.post('/auth/signup', handle(async (req, res) => {
           (owner_user_id, name, registration_number, phone, email, address, city, region, latitude, longitude, specializations)
          VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
-        [id, extra.clinicName, extra.registrationNumber || '', extra.phone, extra.email, extra.address, extra.city,
+        [id, extra.clinicName, extra.registrationNumber || '', extra.phone, normalizedEmail, extra.address, extra.city,
           extra.region || '', extra.latitude || null, extra.longitude || null,
           Array.isArray(extra.specializations) ? extra.specializations : []]
       );
@@ -148,22 +195,27 @@ router.post('/auth/signup', handle(async (req, res) => {
       await client.query('UPDATE users SET clinic_id = $1 WHERE id = $2', [clinic.id, id]);
       userResult.rows[0].clinic_id = clinic.id;
     }
+    const verificationToken = await storeAuthToken(client, id, 'verify_email', 24);
     await client.query('COMMIT');
     transactionOpen = false;
     if (clinic) await notifyAdministrators('clinic_registered', 'Clinic application received', `${clinic.name} submitted a clinic application.`, 'clinic', clinic.id);
     if (patient) await notifyAdministrators('patient_registered', 'Patient registered', `${name} created a patient account.`, 'patient', patient.id);
-    const user = userOut(userResult.rows[0]);
-    await startSession(req, user);
-    res.status(201).json({
-      user,
-      dentist: dentist ? dentistOut(dentist) : null,
-      patient: patient ? patientOut(patient) : null,
-      clinic: clinic ? clinicOut(clinic) : null,
-    });
+    try {
+      await sendVerificationEmail(normalizedEmail, name, verificationToken);
+    } catch (mailError) {
+      console.error('Signup verification email failed:', mailError.message);
+      return res.status(503).json({
+        error: `Your account was created, but the verification email could not be sent. ${mailError.message} Request another email from the sign-in screen.`,
+      });
+    }
+    res.status(201).json({ verificationRequired: true });
   } catch (err) {
     if (transactionOpen) await client.query('ROLLBACK');
-    if (err.code === '23505') {
+    if (err.code === '23505' && err.constraint === 'users_username_lower_idx') {
       return res.status(409).json({ error: 'That username is already taken.' });
+    }
+    if (err.code === '23505' && err.constraint === 'users_email_lower_idx') {
+      return res.status(409).json({ error: 'That email address is already associated with an account.' });
     }
     console.error('Signup failed:', err);
     res.status(500).json({ error: 'Could not create the account. Please try again.' });
@@ -182,9 +234,185 @@ router.post('/auth/login', handle(async (req, res) => {
   if (!user || user.disabled_at || !(await bcrypt.compare(password, user.password_hash))) {
     return res.status(401).json({ error: 'Incorrect username or password.' });
   }
+  if (user.email && !user.email_verified_at) {
+    return res.status(403).json({ error: 'Verify your email address before signing in. You can request a new verification email below.' });
+  }
   const publicUser = userOut(user);
   await startSession(req, publicUser);
   res.json({ user: publicUser });
+}));
+
+router.post('/auth/verify-email', handle(async (req, res) => {
+  const token = String(req.body?.token || '');
+  if (!/^[a-f0-9]{64}$/.test(token)) return res.status(400).json({ error: 'This verification link is invalid or expired.' });
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const client = await pool.connect();
+  let transactionOpen = false;
+  try {
+    await client.query('BEGIN');
+    transactionOpen = true;
+    const result = await client.query(
+      `SELECT u.* FROM auth_tokens t
+       JOIN users u ON u.id = t.user_id
+       WHERE t.token_hash = $1 AND t.purpose = 'verify_email' AND t.expires_at > CURRENT_TIMESTAMP
+         AND u.disabled_at IS NULL
+       FOR UPDATE OF t`,
+      [tokenHash]
+    );
+    if (!result.rowCount) {
+      await client.query('ROLLBACK');
+      transactionOpen = false;
+      return res.status(400).json({ error: 'This verification link is invalid or expired.' });
+    }
+    await client.query('UPDATE users SET email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP) WHERE id = $1', [result.rows[0].user_id]);
+    await client.query('DELETE FROM auth_tokens WHERE token_hash = $1', [tokenHash]);
+    await client.query('COMMIT');
+    transactionOpen = false;
+    const publicUser = userOut(result.rows[0]);
+    await startSession(req, publicUser);
+    try {
+      await sendEmail({
+        to: result.rows[0].email,
+        subject: 'Your Clearview Family Dental account is verified',
+        text: `Hello ${result.rows[0].name},\n\nYour email address has been verified and your account is ready to use.`,
+      });
+      res.json({ success: true, user: publicUser, notificationSent: true, message: 'Your email is verified.' });
+    } catch (mailError) {
+      console.error('Account verification notification failed:', mailError.message);
+      res.json({
+        success: true,
+        user: publicUser,
+        notificationSent: false,
+        message: `Your email is verified, but the confirmation notification could not be sent. ${mailError.message}`,
+      });
+    }
+  } catch (error) {
+    if (transactionOpen) await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}));
+
+router.post('/auth/resend-verification', handle(async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
+  const client = await pool.connect();
+  let pending = null;
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      'SELECT id, name, email FROM users WHERE lower(email) = $1 AND email_verified_at IS NULL AND disabled_at IS NULL FOR UPDATE',
+      [email]
+    );
+    if (result.rowCount) {
+      pending = result.rows[0];
+      pending.token = await storeAuthToken(client, pending.id, 'verify_email', 24);
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  if (pending) {
+    try {
+      await sendVerificationEmail(pending.email, pending.name, pending.token);
+    } catch (mailError) {
+      console.error('Verification email resend failed:', mailError.message);
+      return res.status(503).json({ error: `The verification email could not be sent. ${mailError.message}` });
+    }
+  }
+  res.json({ message: 'If that email belongs to an unverified account, a new verification link has been sent.' });
+}));
+
+router.post('/auth/forgot-password', handle(async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
+  const client = await pool.connect();
+  let account = null;
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      'SELECT id, name, email FROM users WHERE lower(email) = $1 AND disabled_at IS NULL FOR UPDATE',
+      [email]
+    );
+    if (result.rowCount) {
+      account = result.rows[0];
+      account.token = await storeAuthToken(client, account.id, 'reset_password', 1);
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  if (account) {
+    try {
+      const link = new URL('/', getAppUrl());
+      link.searchParams.set('resetPassword', account.token);
+      await sendEmail({
+        to: account.email,
+        subject: 'Reset your Clearview Family Dental password',
+        text: `Hello ${account.name},\n\nUse the link below to choose a new password:\n${link.toString()}\n\nThis link expires in one hour. If you did not request a password reset, you can ignore this email.`,
+      });
+    } catch (mailError) {
+      console.error('Password reset email failed:', mailError.message);
+      return res.status(503).json({ error: `The password reset email could not be sent. ${mailError.message}` });
+    }
+  }
+  res.json({ message: 'If an active account uses that email, a password reset link has been sent.' });
+}));
+
+router.post('/auth/reset-password', handle(async (req, res) => {
+  const token = String(req.body?.token || '');
+  const password = String(req.body?.password || '');
+  if (!/^[a-f0-9]{64}$/.test(token)) return res.status(400).json({ error: 'This password reset link is invalid or expired.' });
+  if (password.length < 10) return res.status(400).json({ error: 'Password must be at least 10 characters.' });
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const passwordHash = await bcrypt.hash(password, 10);
+  const client = await pool.connect();
+  let account;
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `SELECT t.user_id, u.email, u.name FROM auth_tokens t
+       JOIN users u ON u.id = t.user_id
+       WHERE t.token_hash = $1 AND t.purpose = 'reset_password' AND t.expires_at > CURRENT_TIMESTAMP
+       FOR UPDATE OF t`,
+      [tokenHash]
+    );
+    if (!result.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'This password reset link is invalid or expired.' });
+    }
+    account = result.rows[0];
+    await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, account.user_id]);
+    await client.query('DELETE FROM auth_tokens WHERE user_id = $1 AND purpose = \'reset_password\'', [account.user_id]);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  try {
+    await sendEmail({
+      to: account.email,
+      subject: 'Your Clearview Family Dental password was changed',
+      text: `Hello ${account.name},\n\nThe password for your Clearview Family Dental account was changed. If you did not make this change, contact your clinic administrator.`,
+    });
+    res.json({ success: true, notificationSent: true, message: 'Your password has been updated. A confirmation email was sent.' });
+  } catch (mailError) {
+    console.error('Password change notification failed:', mailError.message);
+    res.json({
+      success: true,
+      notificationSent: false,
+      message: `Your password has been updated, but the confirmation email could not be sent. ${mailError.message} You can still sign in.`,
+    });
+  }
 }));
 
 router.get('/auth/me', requireAuth, (req, res) => res.json({ user: req.session.user }));

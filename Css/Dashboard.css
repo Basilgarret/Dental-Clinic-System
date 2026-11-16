@@ -63,6 +63,31 @@
 .dentist-schedule svg{ width:15px; height:15px; }
 .search-highlight{ animation:search-row-highlight 1.8s ease both; }
 @keyframes search-row-highlight{ 0%,100%{background:transparent} 20%,70%{background:var(--accent-soft)} }
+.dashboard-clinic-finder{ margin-bottom:20px; box-shadow:var(--shadow-card); }
+.dashboard-clinic-finder-header{ align-items:center; }
+.dashboard-clinic-finder-header .clinic-search-field{ width:min(380px,45%); }
+.dashboard-clinic-finder-content{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:20px; }
+.dashboard-clinic-results{ min-width:0; }
+.dashboard-clinic-list{ display:grid; gap:8px; }
+.dashboard-clinic-result{ display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:8px; padding:11px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); }
+.dashboard-clinic-result > div{ display:grid; gap:4px; min-width:0; }
+.dashboard-clinic-result strong{ overflow:hidden; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.dashboard-clinic-result span{ color:var(--text-muted); font-size:10px; }
+.dashboard-clinic-result .btn{ white-space:nowrap; }
+.dashboard-clinic-more{ margin-top:10px; color:var(--text-muted); font-size:10px; }
+.dashboard-clinic-map{ height:300px; }
+@media(max-width:780px){
+  .dashboard-clinic-finder-header{ align-items:stretch; flex-direction:column; }
+  .dashboard-clinic-finder-header .clinic-search-field{ width:100%; }
+  .dashboard-clinic-finder-content{ grid-template-columns:1fr; }
+}
+@media(max-width:480px){
+  .dashboard-clinic-result{ grid-template-columns:minmax(0,1fr) auto; }
+  .dashboard-clinic-result [data-dashboard-clinic-details]{ grid-column:2; grid-row:1; }
+  .dashboard-clinic-result [data-dashboard-clinic-book]{ grid-column:2; grid-row:2; }
+  .dashboard-clinic-result > div{ grid-row:1 / span 2; }
+  .dashboard-clinic-map{ height:230px; }
+}
 
 .report-heading{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin:3px 0 20px; }
 .report-heading h1{ margin:5px 0 4px; font-size:25px; }

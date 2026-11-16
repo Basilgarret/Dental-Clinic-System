@@ -10,7 +10,8 @@
     "test": "node --test",
     "reset-admin-password": "node reset-admin-password.js",
     "create-admin-account": "node create-admin-account.js",
-    "replace-admin-account": "node replace-admin-account.js"
+    "replace-admin-account": "node replace-admin-account.js",
+    "gmail:authorize": "node authorize-gmail.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -20,6 +21,7 @@
     "express": "^4.19.2",
     "express-rate-limit": "^8.7.0",
     "express-session": "^1.19.0",
+    "googleapis": "^190.0.0",
     "multer": "^2.4.0",
     "pg": "^8.11.5",
     "swagger-ui-express": "^5.0.1"

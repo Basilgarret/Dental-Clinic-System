@@ -38,7 +38,7 @@
     <div class="brand-stats">
       <div><b>4</b><span>Role-based workspaces</span></div>
       <div><b>1</b><span>Secure local database</span></div>
-      <div><b>0</b><span>Setup steps before you sign up</span></div>
+      <div><b>1</b><span>Email verification step</span></div>
     </div>
   </div>
 
@@ -58,6 +58,7 @@
         </div>
 
         <div class="login-error" id="login-error">Incorrect username or password. Please try again.</div>
+        <div id="login-feedback" class="auth-feedback" role="status" aria-live="polite"></div>
 
         <form id="login-form" novalidate>
           <div class="field" id="field-username">
@@ -73,13 +74,14 @@
           <button type="submit" class="btn btn-primary btn-block">Sign in</button>
         </form>
 
+        <p class="auth-switch"><a href="#" id="show-forgot-password-link">Forgot password?</a> &middot; <a href="#" id="show-resend-verification-link">Resend verification email</a></p>
         <p class="auth-switch">New to Clearview Family Dental? <a href="#" id="show-signup-link">Create an account</a></p>
       </div>
 
       <!-- ===== SIGN UP ===== -->
       <div id="signup-view" class="hidden">
         <h2>Create your account</h2>
-        <p>Register as a Patient, Dentist, or Clinic Owner.</p>
+        <p>Register as a Patient, Dentist, or Clinic Owner. Verify your email before signing in.</p>
 
         <div class="login-error" id="signup-error">Please fix the highlighted fields and try again.</div>
 
@@ -89,6 +91,57 @@
         </form>
 
         <p class="auth-switch">Already have an account? <a href="#" id="show-login-link">Sign in</a></p>
+      </div>
+
+      <div id="verification-pending-view" class="hidden">
+        <h2>Check your email</h2>
+        <p><span id="verification-pending-status">We sent a verification link to</span> <strong id="verification-pending-email"></strong>.</p>
+        <p>Open the message and select <strong>Verify my email</strong>. After verification, we&rsquo;ll automatically sign you in and open your workspace.</p>
+        <div id="verification-pending-feedback" class="auth-feedback" role="status" aria-live="polite"></div>
+        <button type="button" class="btn btn-outline btn-block" id="verification-resend-button">Resend verification email</button>
+        <p class="auth-switch"><a href="#" data-show-login>Back to sign in</a></p>
+      </div>
+
+      <div id="forgot-password-view" class="hidden">
+        <h2>Reset your password</h2>
+        <p>Enter the email address on your account and we will send a reset link.</p>
+        <div id="forgot-password-feedback" class="auth-feedback" role="status" aria-live="polite"></div>
+        <form id="forgot-password-form">
+          <div class="field">
+            <label for="forgot-password-email">Email address</label>
+            <input id="forgot-password-email" type="email" autocomplete="email" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Send reset link</button>
+        </form>
+        <p class="auth-switch"><a href="#" data-show-login>Back to sign in</a></p>
+      </div>
+
+      <div id="resend-verification-view" class="hidden">
+        <h2>Verify your email</h2>
+        <p>Enter the address used to create your account and we will send a new verification link.</p>
+        <div id="resend-verification-feedback" class="auth-feedback" role="status" aria-live="polite"></div>
+        <form id="resend-verification-form">
+          <div class="field">
+            <label for="resend-verification-email">Email address</label>
+            <input id="resend-verification-email" type="email" autocomplete="email" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Send verification link</button>
+        </form>
+        <p class="auth-switch"><a href="#" data-show-login>Back to sign in</a></p>
+      </div>
+
+      <div id="reset-password-view" class="hidden">
+        <h2>Choose a new password</h2>
+        <p>Your password must be at least 10 characters long.</p>
+        <div id="reset-password-feedback" class="auth-feedback" role="status" aria-live="polite"></div>
+        <form id="reset-password-form">
+          <div class="field">
+            <label for="reset-password-value">New password</label>
+            <input id="reset-password-value" type="password" autocomplete="new-password" minlength="10" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Update password</button>
+        </form>
+        <p class="auth-switch"><a href="#" data-show-login>Back to sign in</a></p>
       </div>
 
     </div>

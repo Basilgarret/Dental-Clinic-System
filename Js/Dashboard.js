@@ -1,6 +1,8 @@
 /* ======================================================================
    DASHBOARD
 ====================================================================== */
+let dashboardClinicSearch = '';
+
 function renderDashboard(){
   const role = state.currentUser.role;
   const root = document.getElementById('view-content');
@@ -36,6 +38,7 @@ function renderDashboard(){
           <div class="hint">Completed appointments</div>
         </div>
       </div>
+      ${renderDashboardClinicFinder()}
       <div class="dash-grid">
         <div class="panel">
           <div class="panel-header"><h3>Upcoming &amp; recent visits</h3></div>
@@ -50,6 +53,27 @@ function renderDashboard(){
           </div>
         </div>
       </div>`;
+    const clinicSearchInput = document.getElementById('dashboard-clinic-search');
+    const clinicResults = document.getElementById('dashboard-clinic-results');
+    const clinicMap = document.getElementById('dashboard-clinic-map');
+    const clinicMapsLink = document.getElementById('dashboard-clinic-maps-link');
+    clinicSearchInput.addEventListener('input', () => {
+      dashboardClinicSearch = clinicSearchInput.value;
+      clinicResults.innerHTML = renderDashboardClinicResults(dashboardClinicSearch);
+      const mapQuery = dashboardClinicMapQuery(dashboardClinicSearch);
+      clinicMap.src = `${API_BASE}/maps/embed?query=${encodeURIComponent(mapQuery)}`;
+      clinicMapsLink.href = googleMapsSearchUrl(mapQuery);
+    });
+    clinicResults.addEventListener('click', event => {
+      const detailsButton = event.target.closest('[data-dashboard-clinic-details]');
+      const bookButton = event.target.closest('[data-dashboard-clinic-book]');
+      const clinicId = detailsButton?.dataset.dashboardClinicDetails || bookButton?.dataset.dashboardClinicBook;
+      if (!clinicId) return;
+      const clinic = state.clinics.find(item => String(item.id) === clinicId);
+      if (!clinic) return;
+      if (detailsButton) openClinicDetails(clinic);
+      else openClinicAppointmentForm(clinic);
+    });
     document.getElementById('qa-book').addEventListener('click', ()=> navigateTo('clinics'));
     document.getElementById('qa-records').addEventListener('click', ()=> navigateTo('records'));
     document.getElementById('qa-billing').addEventListener('click', ()=> navigateTo('transactions'));
@@ -178,6 +202,40 @@ function renderDashboard(){
   document.getElementById('qa-record').addEventListener('click', ()=> openRecordForm('add'));
   document.getElementById('qa-empty-schedule')?.addEventListener('click', ()=> openAppointmentForm('add'));
   document.getElementById('qa-invoice').addEventListener('click', ()=> openTransactionForm('add'));
+}
+
+function renderDashboardClinicFinder(){
+  const mapQuery = dashboardClinicMapQuery(dashboardClinicSearch);
+  return `<section class="panel dashboard-clinic-finder">
+    <div class="panel-header dashboard-clinic-finder-header">
+      <div><h3>Find a dental clinic</h3><p class="panel-subtitle">Search approved clinics by name, city, or region.</p></div>
+      <label class="clinic-search-field"><span>Clinic, city, or region</span><input id="dashboard-clinic-search" type="search" placeholder="e.g. Clearview or Manila" value="${escapeHtml(dashboardClinicSearch)}" autocomplete="off"></label>
+    </div>
+    <div class="panel-body dashboard-clinic-finder-content">
+      <div id="dashboard-clinic-results" class="dashboard-clinic-results">${renderDashboardClinicResults(dashboardClinicSearch)}</div>
+      <section class="clinic-map-section"><h4>Google Maps</h4><iframe id="dashboard-clinic-map" class="clinic-map dashboard-clinic-map" title="Google Map showing dental clinics" loading="eager" referrerpolicy="no-referrer-when-downgrade" src="${API_BASE}/maps/embed?query=${encodeURIComponent(mapQuery)}"></iframe><a id="dashboard-clinic-maps-link" class="map-link" href="${escapeHtml(googleMapsSearchUrl(mapQuery))}" target="_blank" rel="noopener noreferrer">Open search in Google Maps</a></section>
+    </div>
+  </section>`;
+}
+
+function dashboardClinicMapQuery(rawQuery){
+  const query = rawQuery.trim().toLowerCase();
+  if (!query) return 'dentists near me';
+  const matchingClinic = (state.clinics || []).find(clinic => String(clinic.name || '').toLowerCase().includes(query));
+  if (matchingClinic) return [matchingClinic.name, matchingClinic.address, matchingClinic.city, matchingClinic.region].filter(Boolean).join(', ');
+  return `dentists near ${rawQuery.trim()}`;
+}
+
+function renderDashboardClinicResults(rawQuery){
+  const clinics = state.clinics || [];
+  const query = rawQuery.trim().toLowerCase();
+  const matches = (query
+    ? clinics.filter(clinic => `${clinic.name || ''} ${clinic.city || ''} ${clinic.region || ''}`.toLowerCase().includes(query))
+    : clinics).slice(0, 6);
+  if (!matches.length) {
+    return emptyState(query ? 'No clinics found' : 'No approved clinics yet', query ? 'Try another clinic name, city, or region.' : 'Approved clinics will appear here when available.');
+  }
+  return `<div class="dashboard-clinic-list">${matches.map(clinic => `<article class="dashboard-clinic-result"><div><strong>${escapeHtml(clinic.name)}</strong><span>${escapeHtml([clinic.city, clinic.region].filter(Boolean).join(', '))}</span></div><button type="button" class="btn btn-outline btn-sm" data-dashboard-clinic-details="${escapeHtml(clinic.id)}">Details</button><button type="button" class="btn btn-primary btn-sm" data-dashboard-clinic-book="${escapeHtml(clinic.id)}">Book</button></article>`).join('')}</div>${!query && clinics.length > matches.length ? `<p class="dashboard-clinic-more">${matches.length} of ${clinics.length} approved clinics shown. Search to narrow the list.</p>` : ''}`;
 }
 
 function renderDashboardActivity(){

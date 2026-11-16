@@ -89,6 +89,14 @@ app.use('/api/auth/signup', rateLimit({
   skip: () => process.env.NODE_ENV !== 'production',
   message: { error: 'Too many accounts were created from this address. Try again later.' },
 }));
+app.use(['/api/auth/forgot-password', '/api/auth/resend-verification'], rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== 'production',
+  message: { error: 'Too many email requests. Try again in 15 minutes.' },
+}));
 app.use(session({
   name: 'wellstone.sid',
   store: new PgSession({ pool, tableName: 'app_sessions', createTableIfMissing: true }),

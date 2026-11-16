@@ -20,10 +20,38 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('Administrator', 'Dentist', 'Clinic Staff', 'Patient')),
   name TEXT NOT NULL,
+  email TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT '';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = 'users'
+      AND column_name = 'email_verified_at'
+  ) THEN
+    ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMPTZ;
+    UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE email <> '';
+  END IF;
+END
+$$;
+
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_idx ON users (lower(username));
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (lower(email)) WHERE email <> '';
+
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  purpose TEXT NOT NULL CHECK (purpose IN ('verify_email', 'reset_password')),
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS auth_tokens_user_purpose_idx ON auth_tokens (user_id, purpose);
 
 CREATE TABLE IF NOT EXISTS patients (
   id TEXT PRIMARY KEY DEFAULT ('P' || nextval('patients_id_seq')::text),

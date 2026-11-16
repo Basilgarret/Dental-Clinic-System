@@ -5,9 +5,12 @@
    an account. New Dentist accounts also create a dentist entry; new
    Patient accounts also create a patient chart.
 ====================================================================== */
+let pendingVerificationEmail = '';
+
 const SIGNUP_BASE_FIELDS = [
   {key:'name', label:'Full Name', type:'text', required:true},
   {key:'username', label:'Username', type:'text', required:true, hint:'This is what you\u2019ll use to sign in.'},
+  {key:'email', label:'Email Address', type:'email', required:true, pattern:EMAIL_RE, patternMsg:'Enter a valid email address.'},
   {key:'password', label:'Password', type:'password', required:true, hint:'At least 10 characters.'},
   {key:'confirmPassword', label:'Confirm Password', type:'password', required:true},
   {key:'role', label:'I am creating an account as a\u2026', type:'select', required:true, options:['Patient','Dentist','Clinic Owner']},
@@ -21,7 +24,6 @@ const SIGNUP_CLINIC_FIELDS = [
   {key:'clinicName', label:'Clinic name', type:'text', required:true},
   {key:'registrationNumber', label:'Business registration number', type:'text', required:false},
   {key:'phone', label:'Clinic phone', type:'tel', required:true, pattern:PHONE_RE, patternMsg:'Enter a valid phone number.'},
-  {key:'email', label:'Clinic email', type:'email', required:true, pattern:EMAIL_RE, patternMsg:'Enter a valid email address.'},
   {key:'address', label:'Street address', type:'text', required:true},
   {key:'city', label:'City', type:'text', required:true},
   {key:'region', label:'Region / province', type:'text', required:false},
@@ -34,27 +36,27 @@ const SIGNUP_PATIENT_FIELDS = [
   {key:'dob', label:'Date of Birth', type:'date', required:true, notFuture:true},
   {key:'gender', label:'Gender', type:'select', required:true, options:['Male','Female','Other']},
   {key:'phone', label:'Phone Number', type:'tel', required:true, pattern:PHONE_RE, patternMsg:'Enter a valid phone number.'},
-  {key:'email', label:'Email Address', type:'email', required:true, pattern:EMAIL_RE, patternMsg:'Enter a valid email address.'},
   {key:'dentistId', label:'Preferred Dentist (optional)', type:'select', required:false, options:()=>dentists.map(d=>({value:d.id,label:d.name}))},
 ];
 
 function switchToSignup(){
   document.getElementById('login-screen').classList.add('signup-mode');
-  document.getElementById('login-view').classList.add('hidden');
-  document.getElementById('signup-view').classList.remove('hidden');
+  showAuthView('signup-view');
   document.getElementById('signup-error').classList.remove('show');
+  clearAuthFeedback('login-feedback');
+  pendingVerificationEmail = '';
   renderSignupBaseFields();
 }
 
 function switchToLogin(){
   document.getElementById('login-screen').classList.remove('signup-mode');
-  document.getElementById('signup-view').classList.add('hidden');
-  document.getElementById('login-view').classList.remove('hidden');
+  showAuthView('login-view');
   document.getElementById('login-error').classList.remove('show');
   // Clear out any dynamically-added signup fields (e.g. the Patient/Dentist
   // extra fields) so their ids can't collide with same-named fields in
   // modals opened later while logged in (both use ids like "f-dentistId").
   document.getElementById('signup-fields').innerHTML = '';
+  pendingVerificationEmail = '';
 }
 
 function renderSignupBaseFields(){
@@ -76,6 +78,29 @@ function renderSignupExtraFields(role){
   } else {
     extraRoot.innerHTML = '';
   }
+}
+
+function showSignupError(message, fieldId){
+  const errBox = document.getElementById('signup-error');
+  errBox.textContent = message;
+  errBox.classList.add('show');
+  const field = fieldId ? document.getElementById(fieldId) : document.querySelector('#signup-fields .field.error');
+  const input = field?.querySelector('input, select, textarea');
+  input?.focus();
+  field?.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+function showVerificationPending(email, message, type){
+  pendingVerificationEmail = email;
+  document.getElementById('login-screen').classList.remove('signup-mode');
+  document.getElementById('signup-fields').innerHTML = '';
+  document.getElementById('verification-pending-status').textContent = type === 'warning'
+    ? 'Your account was created, but we could not send a verification link to'
+    : 'We sent a verification link to';
+  document.getElementById('verification-pending-email').textContent = email;
+  clearAuthFeedback('verification-pending-feedback');
+  showAuthView('verification-pending-view');
+  if(message) showAuthFeedback('verification-pending-feedback',message,type);
 }
 
 function initSignup(){
@@ -106,7 +131,10 @@ function initSignup(){
       extra.specializations = (extra.specializations || '').split(',').map(value=>value.trim()).filter(Boolean);
     }
 
-    if(!baseValid || !extraValid) return;
+    if(!baseValid || !extraValid){
+      showSignupError('Please fix the highlighted fields and try again.');
+      return;
+    }
 
     // Checks the generic validator doesn't cover (uniqueness is verified
     // by the server, since only it can see every existing account).
@@ -124,7 +152,10 @@ function initSignup(){
       confirmWrap.querySelector('.field-error').textContent = 'Passwords do not match.';
       customOk = false;
     }
-    if(!customOk) return;
+    if(!customOk){
+      showSignupError('Please fix the highlighted fields and try again.');
+      return;
+    }
 
     const submitBtn = e.target.querySelector('button[type=submit]');
     const originalLabel = submitBtn.textContent;
@@ -132,23 +163,27 @@ function initSignup(){
     submitBtn.textContent = 'Creating account\u2026';
 
     try{
-      const payload = { name: base.name, username: base.username, password: base.password, role: base.role, extra };
+      const payload = { name: base.name, username: base.username, email: base.email, password: base.password, role: base.role, extra };
       const result = await apiPost('/auth/signup', payload);
 
-      showToast('Account created \u2014 welcome to Clearview Family Dental!', 'success');
       document.getElementById('signup-form').reset();
-      document.getElementById('signup-fields').innerHTML = '';
-      await logIn(result.user);
+      if(result.verificationRequired){
+        showVerificationPending(base.email,'We sent a verification link. Check your inbox and spam folder.','success');
+      }
     }catch(err){
+      if(err.message.startsWith('Your account was created, but the verification email could not be sent.')){
+        showVerificationPending(base.email,err.message,'warning');
+        return;
+      }
       // The server reports a taken username as a 409 conflict — point
       // the error at the username field specifically when that's the case.
       if(/username/i.test(err.message)){
         const usernameWrap = document.getElementById('field-username');
         usernameWrap.classList.add('error');
         usernameWrap.querySelector('.field-error').textContent = err.message;
+        showSignupError(err.message, 'field-username');
       } else {
-        errBox.textContent = err.message;
-        errBox.classList.add('show');
+        showSignupError(err.message);
       }
     }finally{
       submitBtn.disabled = false;
